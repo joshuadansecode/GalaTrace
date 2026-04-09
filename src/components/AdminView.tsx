@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
-import { UserPlus, Shield, RefreshCw, Ticket } from 'lucide-react';
+import { UserPlus, Shield, RefreshCw, Ticket, Download } from 'lucide-react';
 
 export default function AdminView({ profile }: { profile: Profile }) {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -103,6 +103,59 @@ export default function AdminView({ profile }: { profile: Profile }) {
     }
   }
 
+  async function handleExportSales() {
+    try {
+      toast.info('Préparation du fichier CSV...');
+      
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          payments(amount),
+          seller:profiles!seller_id(full_name, email)
+        `);
+
+      if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        toast.error('Aucune vente à exporter.');
+        return;
+      }
+
+      // BOM for UTF-8 Excel compatibility
+      let csvContent = '\uFEFF'; 
+      csvContent += "Date,Acheteur,Type de Billet,Vendeur,Prix Final,Total Payé,Reste à Payer,Notes\n";
+
+      data.forEach((s: any) => {
+        const date = new Date(s.created_at).toLocaleString('fr-FR');
+        const buyer = `"${(s.buyer_name || '').replace(/"/g, '""')}"`;
+        const ticketName = ticketTypes.find(t => t.id === s.ticket_type_id)?.name || s.ticket_type_id;
+        const ticket = `"${ticketName.replace(/"/g, '""')}"`;
+        const sellerName = s.seller?.full_name || s.seller?.email || '';
+        const seller = `"${sellerName.replace(/"/g, '""')}"`;
+        const finalPrice = s.final_price || 0;
+        const totalPaid = s.payments ? s.payments.reduce((acc: number, p: any) => acc + p.amount, 0) : 0;
+        const remaining = finalPrice - totalPaid;
+        const notes = `"${(s.notes || '').replace(/"/g, '""')}"`;
+
+        csvContent += `${date},${buyer},${ticket},${seller},${finalPrice},${totalPaid},${remaining},${notes}\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `galatrace_ventes_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Téléchargement terminé');
+    } catch (error: any) {
+      toast.error('Erreur lors de l\'exportation');
+    }
+  }
+
   return (
     <div className="space-y-8">
       <header className="flex justify-between items-center">
@@ -110,9 +163,15 @@ export default function AdminView({ profile }: { profile: Profile }) {
           <h2 className="text-2xl font-bold tracking-tight">Gestion des Comptes</h2>
           <p className="text-zinc-400">Administrez les accès et les rôles du comité.</p>
         </div>
-        <Button onClick={fetchUsers} variant="outline" size="icon">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportSales} variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white">
+            <Download className="w-4 h-4 mr-2" />
+            Exporter les Ventes
+          </Button>
+          <Button onClick={fetchUsers} variant="outline" size="icon">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
