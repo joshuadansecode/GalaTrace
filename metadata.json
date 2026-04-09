@@ -1,0 +1,5 @@
+{
+  "name": "GalaTrace - Système de Billetterie & Traçabilité Financière",
+  "description": "Système complet de vente de tickets pour gala avec suivi financier en temps réel, gestion des quotas, paiements échelonnés et attribution des places.",
+  "requestFramePermissions": []
+}
