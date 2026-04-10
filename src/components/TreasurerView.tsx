@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Wallet, ArrowUpRight, CheckCircle2, XCircle, Clock, Plus, BarChart3, TrendingUp, Receipt, Trash2 } from 'lucide-react';
 import ContextMenu from './ContextMenu';
 import SellerCashPanel from './SellerCashPanel';
+import { notify, notifyRole } from '../lib/notify';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function TreasurerView({ profile }: { profile: Profile }) {
@@ -183,6 +184,8 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
     }]);
     if (error) { toast.error('Erreur'); return; }
     toast.success('Versement envoyé à la Comptable');
+    // Notifier la Comptable
+    if (comptable) await notify(comptable.id, 'Versement reçu', `La Trésorière Générale vous a remis ${tgAmount.toLocaleString()} F — à confirmer`, 'warning');
     setTgAmount(0);
     fetchData();
   }
@@ -191,6 +194,9 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
     const { error } = await supabase.from('cash_transfers').update({ status }).eq('id', transferId);
     if (error) { toast.error('Erreur'); return; }
     toast.success(status === 'valide' ? 'Versement confirmé' : 'Versement rejeté');
+    // Notifier la TG
+    const transfer = tgTransfers.find(t => t.id === transferId);
+    if (transfer) await notify(transfer.from_id, status === 'valide' ? 'Versement confirmé' : 'Versement rejeté', `La Comptable a ${status === 'valide' ? 'confirmé' : 'rejeté'} votre versement de ${transfer.amount.toLocaleString()} F`, status === 'valide' ? 'success' : 'warning');
     fetchData();
   }
 
@@ -207,6 +213,8 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
       }]);
       if (error) throw error;
       toast.success('Dépense enregistrée');
+      // Notifier la Comptable
+      await notifyRole('tresoriere_generale', 'Nouvelle dépense à valider', `"${expenseTitle}" — ${expenseAmount.toLocaleString()} F`, 'warning');
       setExpenseTitle(''); setExpenseAuthor(''); setExpenseAmount(0); setExpensePaymentStatus('non_reglee');
       fetchData();
     } catch (error: any) {
@@ -223,6 +231,9 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
       }).eq('id', expenseId);
       if (error) throw error;
       toast.success(status === 'validee' ? 'Dépense validée' : 'Dépense rejetée');
+      // Notifier la TG
+      const exp = expenses.find(e => e.id === expenseId);
+      if (exp) await notify(exp.created_by, status === 'validee' ? 'Dépense validée' : 'Dépense rejetée', `"${exp.title}" a été ${status === 'validee' ? 'validée' : 'rejetée'} par la Comptable`, status === 'validee' ? 'success' : 'warning');
       fetchData();
     } catch (error: any) {
       toast.error('Erreur lors de la mise à jour');

@@ -12,6 +12,19 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgot, setIsForgot] = useState(false);
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}`
+    });
+    setLoading(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success('Email de réinitialisation envoyé !');
+    setIsForgot(false);
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,14 +105,39 @@ export default function Auth() {
               {loading ? 'Chargement...' : isSignUp ? "S'inscrire" : 'Se connecter'}
             </Button>
           </form>
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-zinc-400 hover:text-amber-500 transition-colors"
-            >
+          <div className="mt-6 text-center space-y-2">
+            <button onClick={() => setIsSignUp(!isSignUp)}
+              className="block w-full text-sm text-zinc-400 hover:text-amber-500 transition-colors">
               {isSignUp ? 'Déjà un compte ? Connectez-vous' : "Pas encore de compte ? S'inscrire"}
             </button>
+            {!isSignUp && (
+              <button onClick={() => setIsForgot(true)}
+                className="block w-full text-sm text-zinc-600 hover:text-zinc-400 transition-colors">
+                Mot de passe oublié ?
+              </button>
+            )}
           </div>
+
+          {/* Modal mot de passe oublié */}
+          {isForgot && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <div className="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4">
+                <h3 className="font-bold text-lg">Réinitialiser le mot de passe</h3>
+                <p className="text-sm text-zinc-400">Entrez votre email, vous recevrez un lien de réinitialisation.</p>
+                <form onSubmit={handleForgot} className="space-y-3">
+                  <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    required className="bg-zinc-800 border-zinc-700 text-white" />
+                  <div className="flex gap-3">
+                    <Button type="button" variant="outline" className="flex-1 border-zinc-700"
+                      onClick={() => setIsForgot(false)}>Annuler</Button>
+                    <Button type="submit" disabled={loading} className="flex-1 bg-amber-600 hover:bg-amber-700">
+                      {loading ? 'Envoi...' : 'Envoyer'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -26,6 +26,10 @@ export default function App() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === 'PASSWORD_RECOVERY') {
+        // Handled by ResetPassword component
+        return;
+      }
       setSession(session);
       if (session) fetchProfile(session.user.id);
       else {

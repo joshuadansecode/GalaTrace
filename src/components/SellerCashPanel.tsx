@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notify, notifyRole } from '../lib/notify';
 
 interface Props {
   sellerId: string;
@@ -82,6 +83,8 @@ export default function SellerCashPanel({ sellerId, sellerName, canRecord, onVer
     }]);
     setSaving(false);
     if (error) { return; }
+    // Notifier le vendeur que son versement a été enregistré
+    await notify(sellerId, 'Versement enregistré', `La Trésorière Générale a enregistré un versement de ${amount.toLocaleString()} F`, 'success');
     setAmount(0);
     fetchStats();
     onVersionmentRecorded?.();

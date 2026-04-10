@@ -22,6 +22,8 @@ import PlacementView from './PlacementView';
 import PublicView from './PublicView';
 import ActivityFeed from './ActivityFeed';
 import ProfileModal from './ProfileModal';
+import NotificationBell from './NotificationBell';
+import Directory from './Directory';
 
 interface DashboardProps {
   profile: Profile | null;
@@ -125,6 +127,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
     { id: 'placement', label: 'Placement', icon: Armchair, roles: ['admin', 'direction'] },
     { id: 'public', label: 'Liste Invités', icon: Eye, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
     { id: 'activity', label: 'Flux d\'Activité', icon: Activity, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
+    { id: 'directory', label: 'Annuaire', icon: Users, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
   ];
 
   const filteredMenu = menuItems.filter(item => item.roles.includes(profile.role));
@@ -143,6 +146,8 @@ export default function Dashboard({ profile, session }: DashboardProps) {
         return <PublicView />;
       case 'activity':
         return <ActivityFeed profile={profile} />;
+      case 'directory':
+        return <Directory />;
       default:
         return (
           <div className="space-y-6">
@@ -241,6 +246,9 @@ export default function Dashboard({ profile, session }: DashboardProps) {
               <Ticket className="w-6 h-6 text-black" />
             </div>
             <span className="text-xl font-bold tracking-tight">GalaTrace</span>
+            <div className="ml-auto">
+              <NotificationBell userId={profile.id} />
+            </div>
           </div>
 
           <nav className="flex-1 space-y-1">

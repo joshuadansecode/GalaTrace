@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
 import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight } from 'lucide-react';
+import { notify } from '../lib/notify';
 
 export default function AdminView({ profile }: { profile: Profile }) {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -117,6 +118,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
     const { error } = await supabase.from('profiles').update({ is_active: !current }).eq('id', userId);
     if (error) { toast.error('Erreur'); return; }
     toast.success(current ? 'Compte désactivé' : 'Compte activé');
+    if (!current) await notify(userId, 'Compte activé', 'Votre compte a été activé. Vous pouvez maintenant vous connecter.', 'success');
     fetchUsers();
   }
 
@@ -124,6 +126,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
     const { error } = await supabase.from('profiles').update({ ...changes, pending_changes: null }).eq('id', userId);
     if (error) { toast.error('Erreur'); return; }
     toast.success('Modifications approuvées');
+    await notify(userId, 'Profil mis à jour', 'Vos modifications ont été approuvées par l\'admin', 'success');
     fetchUsers();
   }
 
@@ -131,6 +134,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
     const { error } = await supabase.from('profiles').update({ pending_changes: null }).eq('id', userId);
     if (error) { toast.error('Erreur'); return; }
     toast.success('Modifications rejetées');
+    await notify(userId, 'Modifications rejetées', 'Vos modifications de profil ont été rejetées par l\'admin', 'warning');
     fetchUsers();
   }
 
