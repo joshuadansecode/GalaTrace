@@ -7,9 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
-import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2 } from 'lucide-react';
+import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2, FileText } from 'lucide-react';
 import { notify } from '../lib/notify';
 import ContextMenu from './ContextMenu';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function AdminView({ profile }: { profile: Profile }) {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -141,6 +143,81 @@ export default function AdminView({ profile }: { profile: Profile }) {
     toast.success(current ? 'Compte désactivé' : 'Compte activé');
     if (!current) await notify(userId, 'Compte activé', 'Votre compte a été activé. Vous pouvez maintenant vous connecter.', 'success');
     fetchUsers();
+  }
+
+  async function handleExportPDF() {
+    try {
+      toast.info('Génération du PDF...');
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*, payments(amount), seller:profiles!seller_id(full_name, email)');
+      if (error) throw error;
+      if (!data || data.length === 0) { toast.error('Aucune vente.'); return; }
+
+      // Appliquer les mêmes filtres
+      let filtered = data;
+      if (exportFilter.ticket) filtered = filtered.filter((s: any) => s.ticket_type_id === exportFilter.ticket);
+      if (exportFilter.status === 'solde') filtered = filtered.filter((s: any) => s.payments.reduce((a: number, p: any) => a + p.amount, 0) >= s.final_price);
+      if (exportFilter.status === 'partiel') filtered = filtered.filter((s: any) => s.payments.reduce((a: number, p: any) => a + p.amount, 0) < s.final_price);
+      if (exportFilter.filiere) filtered = filtered.filter((s: any) => (s.filiere || '').toUpperCase().includes(exportFilter.filiere.toUpperCase()));
+
+      const doc = new jsPDF({ orientation: 'landscape' });
+
+      // Titre
+      doc.setFontSize(16);
+      doc.text('GalaTrace — Liste des Ventes', 14, 15);
+      doc.setFontSize(10);
+      doc.setTextColor(120);
+      doc.text(`Exporté le ${new Date().toLocaleString('fr-FR')} — ${filtered.length} entrées`, 14, 22);
+      doc.setTextColor(0);
+
+      // Construire colonnes et données selon sélection
+      const cols: string[] = [];
+      if (exportCols.ticket_number) cols.push('N°');
+      if (exportCols.buyer_name) cols.push('Acheteur');
+      if (exportCols.buyer_phone) cols.push('WhatsApp');
+      if (exportCols.filiere) cols.push('Filière');
+      if (exportCols.annee) cols.push('An.');
+      if (exportCols.ticket_type) cols.push('Ticket');
+      if (exportCols.vendeur) cols.push('Vendeur');
+      if (exportCols.final_price) cols.push('Prix');
+      if (exportCols.total_paid) cols.push('Payé');
+      if (exportCols.remaining) cols.push('Reste');
+      if (exportCols.notes) cols.push('Notes');
+
+      const rows = filtered.map((s: any) => {
+        const totalPaid = s.payments.reduce((a: number, p: any) => a + p.amount, 0);
+        const row: string[] = [];
+        if (exportCols.ticket_number) row.push(s.ticket_number || '');
+        if (exportCols.buyer_name) row.push(s.buyer_name || '');
+        if (exportCols.buyer_phone) row.push(s.buyer_phone || '');
+        if (exportCols.filiere) row.push(s.filiere || '');
+        if (exportCols.annee) row.push(s.annee || '');
+        if (exportCols.ticket_type) row.push((ticketTypes.find(t => t.id === s.ticket_type_id)?.name || s.ticket_type_id).replace(' Interne', '').replace(' Externe', ' Ext.'));
+        if (exportCols.vendeur) row.push(s.seller?.full_name || s.seller?.email || '');
+        if (exportCols.final_price) row.push(`${s.final_price?.toLocaleString()} F`);
+        if (exportCols.total_paid) row.push(`${totalPaid.toLocaleString()} F`);
+        if (exportCols.remaining) row.push(`${(s.final_price - totalPaid).toLocaleString()} F`);
+        if (exportCols.notes) row.push(s.notes || '');
+        return row;
+      });
+
+      autoTable(doc, {
+        head: [cols],
+        body: rows,
+        startY: 28,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [180, 120, 0], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { left: 14, right: 14 },
+      });
+
+      doc.save(`galatrace_export_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success(`PDF généré — ${filtered.length} lignes`);
+      setShowExport(false);
+    } catch (err: any) {
+      toast.error('Erreur PDF: ' + err.message);
+    }
   }
 
   async function approveChanges(userId: string, changes: any) {
@@ -612,10 +689,16 @@ export default function AdminView({ profile }: { profile: Profile }) {
                 </div>
               </div>
 
-              <button onClick={handleExportSales}
-                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-                <Download className="w-4 h-4" /> Télécharger le CSV
-              </button>
+              <div className="flex gap-3">
+                <button onClick={handleExportSales}
+                  className="flex-1 py-3 bg-zinc-700 hover:bg-zinc-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <Download className="w-4 h-4" /> CSV (Excel)
+                </button>
+                <button onClick={handleExportPDF}
+                  className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                  <FileText className="w-4 h-4" /> PDF
+                </button>
+              </div>
             </div>
           </div>
         </div>
