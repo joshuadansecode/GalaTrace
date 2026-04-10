@@ -297,6 +297,11 @@ export default function AdminView({ profile }: { profile: Profile }) {
                       <div className="flex justify-end items-center gap-2">
                         {u.pending_changes && Object.keys(u.pending_changes).length > 0 && (
                           <div className="flex gap-1">
+                            <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1 mr-1">
+                              {u.pending_changes.full_name && <p>Nom : <span className="text-white font-medium">{u.pending_changes.full_name}</span></p>}
+                              {u.pending_changes.phone && <p>Tél : <span className="text-white font-medium">{u.pending_changes.phone}</span></p>}
+                              {u.pending_changes.avatar_url && <p className="text-white font-medium">Nouvelle photo</p>}
+                            </div>
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-green-500/50 text-green-500 hover:bg-green-500/10"
                               onClick={() => approveChanges(u.id, u.pending_changes)}>✓</Button>
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-red-500/50 text-red-500 hover:bg-red-500/10"
