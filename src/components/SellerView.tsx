@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Plus, Wallet, Ticket, PieChart as PieChartIcon, Pencil, Trash2 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import ContextMenu from './ContextMenu';
+import SellerCashPanel from './SellerCashPanel';
 
 export default function SellerView({ profile }: { profile: Profile }) {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
@@ -216,6 +217,20 @@ export default function SellerView({ profile }: { profile: Profile }) {
         <h2 className="text-2xl font-bold tracking-tight">Ventes & Tickets</h2>
         <p className="text-zinc-400">Enregistrez de nouvelles ventes et suivez vos encaissements.</p>
       </header>
+
+      {/* Panneau Ma Caisse */}
+      <Card className="bg-zinc-900 border-zinc-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-amber-500" />
+            Ma Caisse
+          </CardTitle>
+          <CardDescription>Votre situation financière en temps réel.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SellerCashPanel sellerId={profile.id} />
+        </CardContent>
+      </Card>
       
       {/* Visual Dashboard - Quotas & Charts */}
       {quotaStats.length > 0 && (

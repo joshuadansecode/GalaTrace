@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { Wallet, ArrowUpRight, CheckCircle2, XCircle, Clock, Plus, BarChart3, TrendingUp, Receipt, Trash2 } from 'lucide-react';
 import ContextMenu from './ContextMenu';
+import SellerCashPanel from './SellerCashPanel';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function TreasurerView({ profile }: { profile: Profile }) {
@@ -32,6 +33,15 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
   const [expenseAuthor, setExpenseAuthor] = useState('');
   const [expenseAmount, setExpenseAmount] = useState(0);
   const [expensePaymentStatus, setExpensePaymentStatus] = useState<'reglee' | 'non_reglee'>('non_reglee');
+
+  // Sellers cash
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [selectedSeller, setSelectedSeller] = useState<any | null>(null);
+
+  // TG → Comptable transfers
+  const [tgTransfers, setTgTransfers] = useState<any[]>([]);
+  const [tgAmount, setTgAmount] = useState(0);
+  const [comptable, setComptable] = useState<any | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -65,6 +75,26 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
       setProfiles(profilesRes.data || []);
       setAllSales(salesRes.data || []);
       setExpenses(expensesRes.data || []);
+
+      const sellerRoles = ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction'];
+      setSellers((profilesRes.data || []).filter((p: any) => sellerRoles.includes(p.role) && p.is_active));
+
+      // TG → Comptable transfers
+      const comptableProfile = (profilesRes.data || []).find((p: any) => p.role === 'tresoriere_generale');
+      setComptable(comptableProfile || null);
+
+      // Fetch TG↔Comptable transfers (visible to TG, Comptable, Admin, Direction)
+      const tgIds = (profilesRes.data || []).filter((p: any) => p.role === 'tresoriere').map((p: any) => p.id);
+      const comptableIds = (profilesRes.data || []).filter((p: any) => p.role === 'tresoriere_generale').map((p: any) => p.id);
+      if (tgIds.length > 0 && comptableIds.length > 0) {
+        const { data: tgData } = await supabase
+          .from('cash_transfers')
+          .select('*, from:profiles!from_id(full_name, email), to:profiles!to_id(full_name, email)')
+          .in('from_id', tgIds)
+          .in('to_id', comptableIds)
+          .order('created_at', { ascending: false });
+        setTgTransfers(tgData || []);
+      }
 
       const processedSales = (salesRes.data || []).map((s: any) => {
         const totalPaid = s.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
@@ -142,6 +172,28 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
     }
   }
 
+  async function handleTgTransfer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!comptable || tgAmount <= 0) return;
+    const { error } = await supabase.from('cash_transfers').insert([{
+      from_id: profile.id,
+      to_id: comptable.id,
+      amount: tgAmount,
+      status: 'en_attente'
+    }]);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success('Versement envoyé à la Comptable');
+    setTgAmount(0);
+    fetchData();
+  }
+
+  async function handleTgValidate(transferId: string, status: 'valide' | 'rejete') {
+    const { error } = await supabase.from('cash_transfers').update({ status }).eq('id', transferId);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success(status === 'valide' ? 'Versement confirmé' : 'Versement rejeté');
+    fetchData();
+  }
+
   async function handleCreateExpense(e: React.FormEvent) {
     e.preventDefault();
     if (!expenseTitle || !expenseAuthor || expenseAmount <= 0) return;
@@ -217,7 +269,67 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
         <h2 className="text-2xl font-bold tracking-tight">Gestion de la Trésorerie</h2>
         <p className="text-zinc-400">Suivez les flux financiers et validez les dépôts.</p>
       </header>
-      
+
+      {/* Panneau Ma Caisse (si le rôle vend aussi) */}
+      <Card className="bg-zinc-900 border-zinc-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-amber-500" />
+            Ma Caisse
+          </CardTitle>
+          <CardDescription>Votre situation financière personnelle.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SellerCashPanel sellerId={profile.id} />
+        </CardContent>
+      </Card>
+
+      {/* Section Caisse Vendeurs */}
+      <Card className="bg-zinc-900 border-zinc-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowUpRight className="w-5 h-5 text-amber-500" />
+            Caisse des Vendeurs
+          </CardTitle>
+          <CardDescription>Situation financière de chaque vendeur.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sellers.map((s: any) => (
+              <button key={s.id} onClick={() => setSelectedSeller(s)}
+                className="text-left p-4 rounded-xl bg-zinc-800 border border-zinc-700 hover:border-amber-500/50 transition-all">
+                <p className="font-bold text-sm mb-1">{s.full_name || s.email}</p>
+                <p className="text-xs text-zinc-500 uppercase">{s.role}</p>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal détail vendeur */}
+      {selectedSeller && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-5 border-b border-zinc-800">
+              <div>
+                <p className="font-bold text-lg">{selectedSeller.full_name || selectedSeller.email}</p>
+                <p className="text-xs text-zinc-500 uppercase">{selectedSeller.role}</p>
+              </div>
+              <button onClick={() => setSelectedSeller(null)} className="text-zinc-500 hover:text-white">
+                <Plus className="w-5 h-5 rotate-45" />
+              </button>
+            </div>
+            <div className="p-5">
+              <SellerCashPanel
+                sellerId={selectedSeller.id}
+                canRecord={['tresoriere', 'admin'].includes(profile.role)}
+                onVersionmentRecorded={() => setSelectedSeller(null)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Visual Dashboard - Treasurer */}
       {(allSales.length > 0 || transfers.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -466,6 +578,89 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Flux TG → Comptable */}
+      {['tresoriere', 'tresoriere_generale', 'admin', 'direction'].includes(profile.role) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <Card className="lg:col-span-2 bg-zinc-900 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowUpRight className="w-5 h-5 text-amber-500" />
+                Flux TG → Comptable
+              </CardTitle>
+              <CardDescription>Versements de la Trésorière Générale vers la Comptable.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Résumé */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="bg-zinc-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-zinc-500 mb-1">Total envoyé</p>
+                  <p className="font-bold text-amber-500">{tgTransfers.reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
+                </div>
+                <div className="bg-zinc-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-zinc-500 mb-1">Validé</p>
+                  <p className="font-bold text-green-500">{tgTransfers.filter(t => t.status === 'valide').reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
+                </div>
+                <div className="bg-zinc-800 rounded-xl p-3 text-center">
+                  <p className="text-xs text-zinc-500 mb-1">En attente</p>
+                  <p className="font-bold text-amber-400">{tgTransfers.filter(t => t.status === 'en_attente').reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
+                </div>
+              </div>
+              {/* Liste */}
+              <div className="space-y-2">
+                {tgTransfers.length === 0 ? (
+                  <p className="text-zinc-500 text-sm text-center py-4">Aucun versement enregistré.</p>
+                ) : tgTransfers.map((t: any) => (
+                  <div key={t.id} className="flex justify-between items-center p-3 rounded-lg bg-zinc-800 border border-zinc-700">
+                    <div>
+                      <p className="font-bold">{t.amount.toLocaleString()} F</p>
+                      <p className="text-xs text-zinc-500">{t.from?.full_name || t.from?.email} → {t.to?.full_name || t.to?.email}</p>
+                      <p className="text-xs text-zinc-600">{new Date(t.created_at).toLocaleDateString('fr-FR')}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {t.status === 'en_attente' && (
+                        <>
+                          <span className="text-xs text-amber-500 font-bold uppercase flex items-center gap-1"><Clock className="w-3 h-3" /> En attente</span>
+                          {profile.role === 'tresoriere_generale' && (
+                            <div className="flex gap-1 ml-2">
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10" onClick={() => handleTgValidate(t.id, 'valide')}>Confirmer</Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={() => handleTgValidate(t.id, 'rejete')}>Rejeter</Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {t.status === 'valide' && <span className="text-xs text-green-500 font-bold uppercase flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Confirmé</span>}
+                      {t.status === 'rejete' && <span className="text-xs text-red-500 font-bold uppercase flex items-center gap-1"><XCircle className="w-3 h-3" /> Rejeté</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Formulaire versement TG → Comptable */}
+          {['tresoriere', 'admin'].includes(profile.role) && comptable && (
+            <Card className="bg-zinc-900 border-zinc-800 h-fit">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-amber-500" />
+                  Remettre à la Comptable
+                </CardTitle>
+                <CardDescription>Déclarer un versement physique vers {comptable.full_name || comptable.email}.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleTgTransfer} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 uppercase">Montant (F)</label>
+                    <Input type="number" min={1} value={tgAmount || ''} onChange={(e) => setTgAmount(Number(e.target.value))} required className="bg-zinc-800 border-zinc-700" />
+                  </div>
+                  <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700">Envoyer la demande</Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Module Dépenses */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
