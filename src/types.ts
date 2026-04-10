@@ -29,6 +29,9 @@ export interface Profile {
   full_name: string | null;
   role: UserRole;
   is_active: boolean;
+  phone: string | null;
+  avatar_url: string | null;
+  pending_changes: { full_name?: string; phone?: string; avatar_url?: string } | null;
   created_at: string;
 }
 

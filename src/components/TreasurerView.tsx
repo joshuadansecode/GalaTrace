@@ -482,49 +482,6 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
             </Table>
           </CardContent>
         </Card>
-
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ArrowUpRight className="w-5 h-5 text-amber-500" />
-              Verser des fonds
-            </CardTitle>
-            <CardDescription>Déposer l'argent encaissé.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleTransfer} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-400 uppercase">Destinataire</label>
-                <Select value={targetUserId} onValueChange={setTargetUserId}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
-                    <SelectValue placeholder="Choisir..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                    {profiles
-                      .filter(p => p.id !== profile.id && ['tresoriere', 'tresoriere_generale', 'admin'].includes(p.role))
-                      .map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.full_name || p.email} ({p.role})</SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-400 uppercase">Montant (F)</label>
-                <Input 
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  required
-                  className="bg-zinc-800 border-zinc-700" 
-                />
-              </div>
-              <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700">
-                Envoyer la demande
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
       </div>
 
       <Card className="bg-zinc-900 border-zinc-800">

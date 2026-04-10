@@ -120,6 +120,20 @@ export default function AdminView({ profile }: { profile: Profile }) {
     fetchUsers();
   }
 
+  async function approveChanges(userId: string, changes: any) {
+    const { error } = await supabase.from('profiles').update({ ...changes, pending_changes: null }).eq('id', userId);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success('Modifications approuvées');
+    fetchUsers();
+  }
+
+  async function rejectChanges(userId: string) {
+    const { error } = await supabase.from('profiles').update({ pending_changes: null }).eq('id', userId);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success('Modifications rejetées');
+    fetchUsers();
+  }
+
   async function handleExportSales() {
     try {
       toast.info('Préparation du fichier CSV...');
@@ -231,6 +245,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
                 <TableRow className="border-zinc-800 hover:bg-transparent">
                   <TableHead className="text-zinc-400">Nom</TableHead>
                   <TableHead className="text-zinc-400">Email</TableHead>
+                  <TableHead className="text-zinc-400">WhatsApp</TableHead>
                   <TableHead className="text-zinc-400">Rôle</TableHead>
                   <TableHead className="text-zinc-400">Statut</TableHead>
                   <TableHead className="text-zinc-400 text-right">Actions</TableHead>
@@ -239,42 +254,64 @@ export default function AdminView({ profile }: { profile: Profile }) {
               <TableBody>
                 {users.map((u) => (
                   <TableRow key={u.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                    <TableCell className="font-medium">{u.full_name || '---'}</TableCell>
-                    <TableCell className="text-zinc-400">{u.email}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-zinc-700 overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold">
+                          {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : (u.full_name || u.email)[0].toUpperCase()}
+                        </div>
+                        <div>
+                          <p>{u.full_name || '---'}</p>
+                          {u.pending_changes && Object.keys(u.pending_changes).length > 0 && (
+                            <p className="text-[10px] text-amber-500">⏳ Modif. en attente</p>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-zinc-400 text-xs">{u.email}</TableCell>
                     <TableCell>
-                      <span className={`
-                        px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                        ${u.role === 'admin' ? 'bg-red-500/10 text-red-500' : 
-                          u.role === 'tresoriere' ? 'bg-green-500/10 text-green-500' : 
-                          'bg-blue-500/10 text-blue-500'}
-                      `}>
+                      {u.phone ? (
+                        <a href={`https://wa.me/${u.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                          className="text-green-500 text-xs hover:underline flex items-center gap-1">
+                          📱 {u.phone}
+                        </a>
+                      ) : <span className="text-zinc-600 text-xs">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                        ${u.role === 'admin' ? 'bg-red-500/10 text-red-500' : u.role === 'tresoriere' ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}`}>
                         {ROLE_LABELS[u.role]}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => toggleActive(u.id, u.is_active)}
+                      <button onClick={() => toggleActive(u.id, u.is_active)}
                         className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full transition-colors
-                          ${u.is_active ? 'bg-green-500/10 text-green-500 hover:bg-red-500/10 hover:text-red-400' : 'bg-red-500/10 text-red-400 hover:bg-green-500/10 hover:text-green-500'}`}
-                      >
+                          ${u.is_active ? 'bg-green-500/10 text-green-500 hover:bg-red-500/10 hover:text-red-400' : 'bg-red-500/10 text-red-400 hover:bg-green-500/10 hover:text-green-500'}`}>
                         {u.is_active ? 'Actif' : 'Inactif'}
                       </button>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Select defaultValue={u.role} onValueChange={(val) => updateRole(u.id, val as UserRole)}>
-                        <SelectTrigger className="w-[130px] bg-zinc-800 border-zinc-700 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="vendeur">Vendeur</SelectItem>
-                          <SelectItem value="comite">Comité</SelectItem>
-                          <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
-                          <SelectItem value="tresoriere_generale">Comptable</SelectItem>
-                          <SelectItem value="direction">Direction</SelectItem>
-                          <SelectItem value="observateur">Observateur</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex justify-end items-center gap-2">
+                        {u.pending_changes && Object.keys(u.pending_changes).length > 0 && (
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-green-500/50 text-green-500 hover:bg-green-500/10"
+                              onClick={() => approveChanges(u.id, u.pending_changes)}>✓</Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs border-red-500/50 text-red-500 hover:bg-red-500/10"
+                              onClick={() => rejectChanges(u.id)}>✗</Button>
+                          </div>
+                        )}
+                        <Select defaultValue={u.role} onValueChange={(val) => updateRole(u.id, val as UserRole)}>
+                          <SelectTrigger className="w-[120px] bg-zinc-800 border-zinc-700 h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="vendeur">Vendeur</SelectItem>
+                            <SelectItem value="comite">Comité</SelectItem>
+                            <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
+                            <SelectItem value="tresoriere_generale">Comptable</SelectItem>
+                            <SelectItem value="direction">Direction</SelectItem>
+                            <SelectItem value="observateur">Observateur</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -21,6 +21,7 @@ import TreasurerView from './TreasurerView';
 import PlacementView from './PlacementView';
 import PublicView from './PublicView';
 import ActivityFeed from './ActivityFeed';
+import ProfileModal from './ProfileModal';
 
 interface DashboardProps {
   profile: Profile | null;
@@ -34,6 +35,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
   const [stats, setStats] = useState({ lastSale: '--', totalCaisse: 0 });
   const [pendingCount, setPendingCount] = useState(0);
   const [overviewStats, setOverviewStats] = useState({ totalTickets: 0, totalRevenue: 0, seatsOccupied: 0, seatsTotal: 0 });
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -65,8 +67,10 @@ export default function Dashboard({ profile, session }: DashboardProps) {
   }
 
   async function fetchPendingCount() {
-    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', false);
-    setPendingCount(count || 0);
+    const { data } = await supabase.from('profiles').select('id, pending_changes, is_active');
+    const inactive = (data || []).filter((p: any) => !p.is_active).length;
+    const pendingMods = (data || []).filter((p: any) => p.pending_changes && Object.keys(p.pending_changes).length > 0).length;
+    setPendingCount(inactive + pendingMods);
   }
 
   async function fetchOverviewStats() {
@@ -116,7 +120,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
   const menuItems = [
     { id: 'overview', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
     { id: 'sales', label: 'Ventes & Tickets', icon: Ticket, roles: ['admin', 'vendeur', 'comite', 'tresoriere'] },
-    { id: 'treasury', label: 'Trésorerie', icon: Wallet, roles: ['admin', 'tresoriere', 'tresoriere_generale', 'vendeur', 'comite'] },
+    { id: 'treasury', label: 'Trésorerie', icon: Wallet, roles: ['admin', 'tresoriere', 'tresoriere_generale', 'direction'] },
     { id: 'admin', label: 'Administration', icon: Users, roles: ['admin'] },
     { id: 'placement', label: 'Placement', icon: Armchair, roles: ['admin', 'direction'] },
     { id: 'public', label: 'Liste Invités', icon: Eye, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
@@ -266,15 +270,24 @@ export default function Dashboard({ profile, session }: DashboardProps) {
           </nav>
 
           <div className="pt-6 border-t border-zinc-800">
-            <div className="flex items-center gap-3 px-4 py-3 mb-4">
-              <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold">
-                {profile.email[0].toUpperCase()}
+            <button
+              onClick={() => setShowProfile(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-lg hover:bg-zinc-800 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center text-xs font-bold shrink-0">
+                {profile.avatar_url
+                  ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                  : profile.email[0].toUpperCase()
+                }
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{profile.full_name || 'Utilisateur'}</p>
                 <p className="text-xs text-zinc-500 truncate">{ROLE_LABELS[profile.role]}</p>
               </div>
-            </div>
+              {profile.pending_changes && Object.keys(profile.pending_changes).length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Modifications en attente" />
+              )}
+            </button>
             <button
               onClick={handleSignOut}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-all"
@@ -292,6 +305,14 @@ export default function Dashboard({ profile, session }: DashboardProps) {
           {renderContent()}
         </div>
       </main>
+
+      {showProfile && (
+        <ProfileModal
+          profile={profile}
+          onClose={() => setShowProfile(false)}
+          onUpdated={() => {}}
+        />
+      )}
     </div>
   );
 }
