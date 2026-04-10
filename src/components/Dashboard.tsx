@@ -143,7 +143,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
       case 'placement':
         return <PlacementView profile={profile} />;
       case 'public':
-        return <PublicView />;
+        return <PublicView profile={profile} />;
       case 'activity':
         return <ActivityFeed profile={profile} />;
       case 'directory':

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Sale, Seat, Table as TableType } from '../types';
+import { Profile, Sale, Seat, Table as TableType } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Search, X, CreditCard, StickyNote } from 'lucide-react';
+import { Search, X, CreditCard, StickyNote, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import ContextMenu from './ContextMenu';
 
-export default function PublicView() {
+export default function PublicView({ profile }: { profile: Profile | null }) {
   const [sales, setSales] = useState<any[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [tables, setTables] = useState<TableType[]>([]);
@@ -16,6 +18,17 @@ export default function PublicView() {
   const [guestPayments, setGuestPayments] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 15;
+
+  // Edit state (admin)
+  const [editingGuest, setEditingGuest] = useState<any | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editTicketNumber, setEditTicketNumber] = useState('');
+  const [editFiliere, setEditFiliere] = useState('');
+  const [editAnnee, setEditAnnee] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  const isAdmin = profile?.role === 'admin';
 
   // Tri et filtres
   const [sortKey, setSortKey] = useState<'buyer_name' | 'ticket_type_id' | 'remaining_balance' | 'created_at'>('buyer_name');
@@ -64,6 +77,31 @@ export default function PublicView() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
     setPage(0);
+  }
+
+  async function handleDelete(saleId: string) {
+    if (!confirm('Supprimer cet acheteur ?')) return;
+    const { error } = await supabase.from('sales').delete().eq('id', saleId);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success('Supprimé');
+    fetchData();
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingGuest) return;
+    const { error } = await supabase.from('sales').update({
+      buyer_name: editName,
+      buyer_phone: editPhone || null,
+      ticket_number: editTicketNumber || null,
+      filiere: editFiliere || null,
+      annee: editAnnee || null,
+      notes: editNotes || null,
+    }).eq('id', editingGuest.id);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success('Modifié');
+    setEditingGuest(null);
+    fetchData();
   }
 
   const SortIcon = ({ k }: { k: typeof sortKey }) => (
@@ -137,8 +175,9 @@ export default function PublicView() {
                 <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
                 <TableHead className="text-zinc-400">Filière</TableHead>
                 <TableHead className="text-zinc-400">Vendeur</TableHead>
-                <TableHead className="text-zinc-400">Table</TableHead>
-                <TableHead className="text-zinc-400">Place</TableHead>
+                <TableHead className="text-zinc-400">Payé</TableHead>
+                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></TableHead>
+                <TableHead className="text-zinc-400">Table/Place</TableHead>
                 <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Statut <SortIcon k="remaining_balance" /></TableHead>
               </TableRow>
             </TableHeader>
@@ -146,8 +185,13 @@ export default function PublicView() {
               {paginatedGuests.map((guest) => {
                 const seat = seats.find(s => s.sale_id === guest.id);
                 const table = seat ? tables.find(t => t.id === seat.table_id) : null;
+                const contextItems = isAdmin ? [
+                  { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingGuest(guest); setEditName(guest.buyer_name); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditNotes(guest.notes || ''); } },
+                  { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDelete(guest.id) }
+                ] : [];
                 return (
-                  <TableRow key={guest.id}
+                  <ContextMenu key={guest.id} items={contextItems}>
+                  <TableRow
                     className="border-zinc-800 hover:bg-zinc-800/50 transition-colors cursor-pointer"
                     onClick={() => openGuest(guest)}
                   >
@@ -156,7 +200,7 @@ export default function PublicView() {
                         {guest.buyer_name}
                         {guest.buyer_phone && (
                           <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                            className="text-green-500 hover:text-green-400" title={guest.buyer_phone}>📱</a>
+                            className="text-green-500 hover:text-green-400" title={guest.buyer_phone} onClick={e => e.stopPropagation()}>📱</a>
                         )}
                       </div>
                     </TableCell>
@@ -167,8 +211,9 @@ export default function PublicView() {
                       {guest.annee ? <span className="text-zinc-500"> A{guest.annee}</span> : ''}
                     </TableCell>
                     <TableCell className="text-zinc-400 text-sm">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
-                    <TableCell className="text-amber-500 font-medium">{table ? table.name : '---'}</TableCell>
-                    <TableCell>{seat ? `N° ${seat.seat_number}` : '---'}</TableCell>
+                    <TableCell className="text-green-500 font-bold text-sm">{guest.total_paid?.toLocaleString()} F</TableCell>
+                    <TableCell className={`font-bold text-sm ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-zinc-600'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
+                    <TableCell className="text-amber-500 text-xs">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
                         ${guest.remaining_balance === 0 ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>
@@ -176,11 +221,12 @@ export default function PublicView() {
                       </span>
                     </TableCell>
                   </TableRow>
+                  </ContextMenu>
                 );
               })}
               {filteredGuests.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-zinc-500">Aucun invité trouvé.</TableCell>
+                  <TableCell colSpan={9} className="text-center py-10 text-zinc-500">Aucun invité trouvé.</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -194,6 +240,38 @@ export default function PublicView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal édition invité (admin) */}
+      {editingGuest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl">
+            <div className="flex justify-between items-center p-5 border-b border-zinc-800">
+              <p className="font-bold">Modifier l'acheteur</p>
+              <button onClick={() => setEditingGuest(null)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <form onSubmit={handleEdit} className="p-5 space-y-3">
+              <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom" className="bg-zinc-800 border-zinc-700" />
+              <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="WhatsApp" className="bg-zinc-800 border-zinc-700" />
+              <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="N° Ticket" className="bg-zinc-800 border-zinc-700" />
+              <div className="grid grid-cols-2 gap-2">
+                <Input value={editFiliere} onChange={e => setEditFiliere(e.target.value.toUpperCase())} placeholder="Filière" className="bg-zinc-800 border-zinc-700" />
+                <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                  <option value="">Année</option>
+                  <option value="1">1ère</option>
+                  <option value="2">2ème</option>
+                  <option value="3">3ème</option>
+                  <option value="Externe">Externe</option>
+                </select>
+              </div>
+              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes" className="bg-zinc-800 border-zinc-700" />
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditingGuest(null)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-sm">Annuler</button>
+                <button type="submit" className="flex-1 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium">Enregistrer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal détail invité */}
       {selectedGuest && (
