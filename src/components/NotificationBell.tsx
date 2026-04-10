@@ -91,7 +91,7 @@ export default function NotificationBell({ userId }: Props) {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-10 z-50 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="fixed top-4 right-4 z-50 w-80 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-800">
               <p className="font-bold text-sm">Notifications</p>
               <div className="flex items-center gap-2">
