@@ -17,6 +17,14 @@ export default function PublicView() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 15;
 
+  // Tri et filtres
+  const [sortKey, setSortKey] = useState<'buyer_name' | 'ticket_type_id' | 'remaining_balance' | 'created_at'>('buyer_name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [filterTicket, setFilterTicket] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterSeller, setFilterSeller] = useState('');
+  const [sellers, setSellers] = useState<any[]>([]);
+
   useEffect(() => {
     fetchData();
     const channel = supabase.channel('public-realtime')
@@ -40,6 +48,9 @@ export default function PublicView() {
     setSales(processed);
     setSeats(seatsRes.data || []);
     setTables(tablesRes.data || []);
+    // Extraire vendeurs uniques
+    const uniqueSellers = Array.from(new Map(processed.map((s: any) => [s.seller?.email, s.seller]).filter(([k]) => k)).values());
+    setSellers(uniqueSellers);
     setLoading(false);
   }
 
@@ -48,9 +59,26 @@ export default function PublicView() {
     setGuestPayments(guest.payments || []);
   }
 
-  const filteredGuests = sales.filter(s =>
-    s.buyer_name.toLowerCase().includes(searchTerm.toLowerCase())
+  function toggleSort(key: typeof sortKey) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+    setPage(0);
+  }
+
+  const SortIcon = ({ k }: { k: typeof sortKey }) => (
+    <span className="ml-1 text-zinc-500">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
   );
+
+  const filteredGuests = sales
+    .filter(s => s.buyer_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter(s => !filterTicket || s.ticket_type_id === filterTicket)
+    .filter(s => !filterStatus || (filterStatus === 'solde' ? s.remaining_balance === 0 : s.remaining_balance > 0))
+    .filter(s => !filterSeller || s.seller?.email === filterSeller)
+    .sort((a, b) => {
+      const va = a[sortKey] ?? '';
+      const vb = b[sortKey] ?? '';
+      return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
   const paginatedGuests = filteredGuests.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
@@ -60,10 +88,34 @@ export default function PublicView() {
         <p className="text-zinc-400">Consultez la liste officielle des participants et trouvez votre place.</p>
       </header>
 
-      <div className="relative max-w-md mx-auto">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-        <Input placeholder="Rechercher un nom..." className="pl-10 bg-zinc-900 border-zinc-800"
-          value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }} />
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <Input placeholder="Rechercher un nom..." className="pl-10 bg-zinc-900 border-zinc-800"
+            value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }} />
+        </div>
+        <select value={filterTicket} onChange={(e) => { setFilterTicket(e.target.value); setPage(0); }}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="">Tous les tickets</option>
+          <option value="gold_interne">Gold Interne</option>
+          <option value="platinum_interne">Platinum Interne</option>
+          <option value="diamond_interne">Diamond Interne</option>
+          <option value="gold_externe">Gold Externe</option>
+          <option value="diamond_externe">Diamond Externe</option>
+          <option value="royal">Royal</option>
+        </select>
+        <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="">Tous les statuts</option>
+          <option value="solde">Soldé</option>
+          <option value="partiel">Partiel</option>
+        </select>
+        <select value={filterSeller} onChange={(e) => { setFilterSeller(e.target.value); setPage(0); }}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white">
+          <option value="">Tous les vendeurs</option>
+          {sellers.map((s: any) => <option key={s.email} value={s.email}>{s.full_name || s.email}</option>)}
+        </select>
+        <span className="text-xs text-zinc-500 self-center">{filteredGuests.length} résultat(s)</span>
       </div>
 
       <Card className="bg-zinc-900 border-zinc-800">
@@ -71,13 +123,13 @@ export default function PublicView() {
           <Table>
             <TableHeader>
               <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Invité</TableHead>
+                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
                 <TableHead className="text-zinc-400">N°</TableHead>
-                <TableHead className="text-zinc-400">Ticket</TableHead>
+                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
                 <TableHead className="text-zinc-400">Vendeur</TableHead>
                 <TableHead className="text-zinc-400">Table</TableHead>
                 <TableHead className="text-zinc-400">Place</TableHead>
-                <TableHead className="text-zinc-400">Statut</TableHead>
+                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Statut <SortIcon k="remaining_balance" /></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
