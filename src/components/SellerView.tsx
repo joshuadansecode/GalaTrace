@@ -30,6 +30,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [initialPayment, setInitialPayment] = useState(0);
   const [ticketNumber, setTicketNumber] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
+  const [quickMode, setQuickMode] = useState(false);
 
   // Modal state
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<Sale | null>(null);
@@ -419,12 +420,68 @@ export default function SellerView({ profile }: { profile: Profile }) {
 
         <Card className="bg-zinc-900 border-zinc-800">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="w-5 h-5 text-amber-500" />
-              Nouvelle Vente
-            </CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="w-5 h-5 text-amber-500" />
+                Nouvelle Vente
+              </CardTitle>
+              <button
+                onClick={() => setQuickMode(!quickMode)}
+                className={`text-xs font-bold px-3 py-1 rounded-full transition-colors ${quickMode ? 'bg-amber-500 text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+              >
+                ⚡ Saisie rapide
+              </button>
+            </div>
           </CardHeader>
           <CardContent>
+            {quickMode ? (
+              <div className="space-y-4">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-xs text-amber-400">
+                  ⚡ Mode rapide — le type de ticket est mémorisé entre les saisies
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Type de Ticket (mémorisé)</label>
+                  <Select value={selectedTicketType} onValueChange={setSelectedTicketType}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      {ticketTypes.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.price.toLocaleString()} F)</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  const type = ticketTypes.find(t => t.id === selectedTicketType);
+                  if (!type || !buyerName) return;
+                  try {
+                    const { data: saleData, error } = await supabase.from('sales').insert([{
+                      buyer_name: buyerName,
+                      buyer_phone: buyerPhone || null,
+                      ticket_type_id: selectedTicketType,
+                      base_price: type.price,
+                      discount_amount: 0,
+                      final_price: type.price,
+                      seller_id: profile.id,
+                      ticket_number: ticketNumber || null
+                    }]).select().single();
+                    if (error) throw error;
+                    if (initialPayment > 0) {
+                      await supabase.from('payments').insert([{ sale_id: saleData.id, amount: initialPayment, collector_id: profile.id }]);
+                    }
+                    // Reset only name/phone/payment, keep ticket type
+                    setBuyerName(''); setBuyerPhone(''); setInitialPayment(0); setTicketNumber('');
+                    fetchData();
+                  } catch { toast.error('Erreur'); }
+                }} className="space-y-3">
+                  <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required placeholder="Nom acheteur *" className="bg-zinc-800 border-zinc-700" autoFocus />
+                  <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="WhatsApp (optionnel)" className="bg-zinc-800 border-zinc-700" />
+                  <Input value={ticketNumber} onChange={(e) => setTicketNumber(e.target.value)} placeholder="N° ticket (optionnel)" className="bg-zinc-800 border-zinc-700" />
+                  <Input type="number" value={initialPayment || ''} onChange={(e) => setInitialPayment(Number(e.target.value))} placeholder="Acompte (optionnel)" className="bg-zinc-800 border-zinc-700" />
+                  <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={!selectedTicketType || !buyerName}>
+                    ✓ Enregistrer & suivant
+                  </Button>
+                </form>
+              </div>
+            ) : (
             <form onSubmit={handleSale} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">N° de Ticket</label>
@@ -512,6 +569,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 Enregistrer la vente
               </Button>
             </form>
+            )}
           </CardContent>
         </Card>
       </div>
