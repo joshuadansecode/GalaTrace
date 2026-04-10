@@ -25,7 +25,15 @@ export default function AdminView({ profile }: { profile: Profile }) {
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState('');
   const [quotaQuantity, setQuotaQuantity] = useState(0);
 
-  // Financial summary
+  // Export modal state
+  const [showExport, setShowExport] = useState(false);
+  const [exportCols, setExportCols] = useState({
+    date: true, ticket_number: true, buyer_name: true, buyer_phone: true,
+    filiere: true, annee: true, ticket_type: true, vendeur: true,
+    base_price: false, discount: false, final_price: true,
+    total_paid: true, remaining: true, table: true, notes: true
+  });
+  const [exportFilter, setExportFilter] = useState({ ticket: '', status: '', filiere: '' });
   const [totalEncaisse, setTotalEncaisse] = useState(0);
   const [totalDepensesActees, setTotalDepensesActees] = useState(0);
 
@@ -160,41 +168,74 @@ export default function AdminView({ profile }: { profile: Profile }) {
       if (error) throw error;
       if (!data || data.length === 0) { toast.error('Aucune vente à exporter.'); return; }
 
-      let csvContent = '\uFEFF';
-      csvContent += "Date,N° Ticket,Acheteur,Type de Billet,Vendeur,Prix Base,Réduction,Prix Final,Total Payé,Reste à Payer,Table,Place,Notes\n";
+      // Appliquer les filtres
+      let filtered = data;
+      if (exportFilter.ticket) filtered = filtered.filter((s: any) => s.ticket_type_id === exportFilter.ticket);
+      if (exportFilter.status === 'solde') filtered = filtered.filter((s: any) => {
+        const paid = s.payments.reduce((a: number, p: any) => a + p.amount, 0);
+        return paid >= s.final_price;
+      });
+      if (exportFilter.status === 'partiel') filtered = filtered.filter((s: any) => {
+        const paid = s.payments.reduce((a: number, p: any) => a + p.amount, 0);
+        return paid < s.final_price;
+      });
+      if (exportFilter.filiere) filtered = filtered.filter((s: any) =>
+        (s.filiere || '').toUpperCase().includes(exportFilter.filiere.toUpperCase())
+      );
 
-      data.forEach((s: any) => {
-        const date = new Date(s.created_at).toLocaleString('fr-FR');
-        const ticketName = ticketTypes.find(t => t.id === s.ticket_type_id)?.name || s.ticket_type_id;
-        const totalPaid = s.payments ? s.payments.reduce((acc: number, p: any) => acc + p.amount, 0) : 0;
+      // Construire les en-têtes
+      const headers: string[] = [];
+      if (exportCols.date) headers.push('Date');
+      if (exportCols.ticket_number) headers.push('N° Ticket');
+      if (exportCols.buyer_name) headers.push('Acheteur');
+      if (exportCols.buyer_phone) headers.push('WhatsApp');
+      if (exportCols.filiere) headers.push('Filière');
+      if (exportCols.annee) headers.push('Année');
+      if (exportCols.ticket_type) headers.push('Type Billet');
+      if (exportCols.vendeur) headers.push('Vendeur');
+      if (exportCols.base_price) headers.push('Prix Base');
+      if (exportCols.discount) headers.push('Réduction');
+      if (exportCols.final_price) headers.push('Prix Final');
+      if (exportCols.total_paid) headers.push('Total Payé');
+      if (exportCols.remaining) headers.push('Reste');
+      if (exportCols.table) headers.push('Table/Place');
+      if (exportCols.notes) headers.push('Notes');
+
+      let csv = '\uFEFF' + headers.join(',') + '\n';
+
+      filtered.forEach((s: any) => {
+        const totalPaid = s.payments.reduce((a: number, p: any) => a + p.amount, 0);
+        const remaining = s.final_price - totalPaid;
         const seat = s.seat?.[0];
-        const row = [
-          date,
-          s.ticket_number || '',
-          s.buyer_name || '',
-          ticketName,
-          s.seller?.full_name || s.seller?.email || '',
-          s.base_price || 0,
-          s.discount_amount || 0,
-          s.final_price || 0,
-          totalPaid,
-          (s.final_price || 0) - totalPaid,
-          seat?.table?.name || '',
-          seat ? `N°${seat.seat_number}` : '',
-          s.notes || ''
-        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
-        csvContent += row + '\n';
+        const row: string[] = [];
+        if (exportCols.date) row.push(`"${new Date(s.created_at).toLocaleString('fr-FR')}"`);
+        if (exportCols.ticket_number) row.push(`"${s.ticket_number || ''}"`);
+        if (exportCols.buyer_name) row.push(`"${(s.buyer_name || '').replace(/"/g, '""')}"`);
+        if (exportCols.buyer_phone) row.push(`"${s.buyer_phone || ''}"`);
+        if (exportCols.filiere) row.push(`"${s.filiere || ''}"`);
+        if (exportCols.annee) row.push(`"${s.annee || ''}"`);
+        if (exportCols.ticket_type) row.push(`"${ticketTypes.find(t => t.id === s.ticket_type_id)?.name || s.ticket_type_id}"`);
+        if (exportCols.vendeur) row.push(`"${s.seller?.full_name || s.seller?.email || ''}"`);
+        if (exportCols.base_price) row.push(s.base_price);
+        if (exportCols.discount) row.push(s.discount_amount || 0);
+        if (exportCols.final_price) row.push(s.final_price);
+        if (exportCols.total_paid) row.push(totalPaid);
+        if (exportCols.remaining) row.push(remaining);
+        if (exportCols.table) row.push(`"${seat?.table?.name ? `${seat.table.name} #${seat.seat_number}` : ''}"`);
+        if (exportCols.notes) row.push(`"${(s.notes || '').replace(/"/g, '""')}"`);
+        csv += row.join(',') + '\n';
       });
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `galatrace_ventes_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `galatrace_export_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Téléchargement terminé');
+      toast.success(`${filtered.length} lignes exportées`);
+      setShowExport(false);
     } catch (error: any) {
       toast.error('Erreur lors de l\'exportation');
     }
@@ -208,7 +249,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
           <p className="text-zinc-400">Administrez les accès et les rôles du comité.</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleExportSales} variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white">
+          <Button onClick={() => setShowExport(true)} variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white">
             <Download className="w-4 h-4 mr-2" />
             Exporter les Ventes
           </Button>
@@ -511,6 +552,74 @@ export default function AdminView({ profile }: { profile: Profile }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal Export */}
+      {showExport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-5 border-b border-zinc-800">
+              <p className="font-bold text-lg">Configurer l'export</p>
+              <button onClick={() => setShowExport(false)} className="text-zinc-500 hover:text-white">✕</button>
+            </div>
+            <div className="p-5 space-y-6">
+              {/* Filtres */}
+              <div>
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Filtres</p>
+                <div className="grid grid-cols-1 gap-3">
+                  <select value={exportFilter.ticket} onChange={e => setExportFilter(f => ({...f, ticket: e.target.value}))}
+                    className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                    <option value="">Tous les types de tickets</option>
+                    {ticketTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <select value={exportFilter.status} onChange={e => setExportFilter(f => ({...f, status: e.target.value}))}
+                    className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                    <option value="">Tous les statuts</option>
+                    <option value="solde">Soldés uniquement</option>
+                    <option value="partiel">Partiels uniquement</option>
+                  </select>
+                  <input value={exportFilter.filiere} onChange={e => setExportFilter(f => ({...f, filiere: e.target.value.toUpperCase()}))}
+                    placeholder="Filière (ex: HTR, laisser vide pour tout)"
+                    className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-500" />
+                </div>
+              </div>
+
+              {/* Colonnes */}
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Colonnes à inclure</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setExportCols(c => Object.fromEntries(Object.keys(c).map(k => [k, true])) as any)}
+                      className="text-xs text-amber-500 hover:underline">Tout</button>
+                    <button onClick={() => setExportCols(c => Object.fromEntries(Object.keys(c).map(k => [k, false])) as any)}
+                      className="text-xs text-zinc-500 hover:underline">Aucun</button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    ['date', 'Date'], ['ticket_number', 'N° Ticket'], ['buyer_name', 'Nom acheteur'],
+                    ['buyer_phone', 'WhatsApp'], ['filiere', 'Filière'], ['annee', 'Année'],
+                    ['ticket_type', 'Type billet'], ['vendeur', 'Vendeur'], ['base_price', 'Prix base'],
+                    ['discount', 'Réduction'], ['final_price', 'Prix final'], ['total_paid', 'Total payé'],
+                    ['remaining', 'Reste dû'], ['table', 'Table/Place'], ['notes', 'Notes']
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-zinc-800">
+                      <input type="checkbox" checked={exportCols[key as keyof typeof exportCols]}
+                        onChange={e => setExportCols(c => ({...c, [key]: e.target.checked}))}
+                        className="accent-amber-500" />
+                      <span className="text-sm text-zinc-300">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={handleExportSales}
+                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+                <Download className="w-4 h-4" /> Télécharger le CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
