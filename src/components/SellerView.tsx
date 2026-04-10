@@ -30,6 +30,8 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [initialPayment, setInitialPayment] = useState(0);
   const [ticketNumber, setTicketNumber] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
+  const [filiere, setFiliere] = useState('');
+  const [annee, setAnnee] = useState('');
   const [quickMode, setQuickMode] = useState(false);
 
   // Modal state
@@ -156,7 +158,9 @@ export default function SellerView({ profile }: { profile: Profile }) {
           seller_id: profile.id,
           notes: notes || null,
           ticket_number: ticketNumber || null,
-          buyer_phone: buyerPhone || null
+          buyer_phone: buyerPhone || null,
+          filiere: filiere || null,
+          annee: annee || null
         }])
         .select()
         .single();
@@ -191,6 +195,8 @@ export default function SellerView({ profile }: { profile: Profile }) {
     setInitialPayment(0);
     setTicketNumber('');
     setBuyerPhone('');
+    setFiliere('');
+    setAnnee('');
   }
 
   async function handleAddPayment(e: React.FormEvent) {
@@ -461,20 +467,33 @@ export default function SellerView({ profile }: { profile: Profile }) {
                       discount_amount: 0,
                       final_price: type.price,
                       seller_id: profile.id,
-                      ticket_number: ticketNumber || null
+                      ticket_number: ticketNumber || null,
+                      filiere: filiere || null,
+                      annee: annee || null
                     }]).select().single();
                     if (error) throw error;
                     if (initialPayment > 0) {
                       await supabase.from('payments').insert([{ sale_id: saleData.id, amount: initialPayment, collector_id: profile.id }]);
                     }
                     // Reset only name/phone/payment, keep ticket type
-                    setBuyerName(''); setBuyerPhone(''); setInitialPayment(0); setTicketNumber('');
+                    setBuyerName(''); setBuyerPhone(''); setInitialPayment(0); setTicketNumber(''); setFiliere(''); setAnnee('');
                     fetchData();
                   } catch { toast.error('Erreur'); }
                 }} className="space-y-3">
                   <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required placeholder="Nom acheteur *" className="bg-zinc-800 border-zinc-700" autoFocus />
                   <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="WhatsApp (optionnel)" className="bg-zinc-800 border-zinc-700" />
                   <Input value={ticketNumber} onChange={(e) => setTicketNumber(e.target.value)} placeholder="N° ticket (optionnel)" className="bg-zinc-800 border-zinc-700" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input value={filiere} onChange={(e) => setFiliere(e.target.value.toUpperCase())} placeholder="Filière (ex: HTR)" className="bg-zinc-800 border-zinc-700" />
+                    <select value={annee} onChange={(e) => setAnnee(e.target.value)}
+                      className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                      <option value="">Année</option>
+                      <option value="1">1ère année</option>
+                      <option value="2">2ème année</option>
+                      <option value="3">3ème année</option>
+                      <option value="Externe">Externe</option>
+                    </select>
+                  </div>
                   <Input type="number" value={initialPayment || ''} onChange={(e) => setInitialPayment(Number(e.target.value))} placeholder="Acompte (optionnel)" className="bg-zinc-800 border-zinc-700" />
                   <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={!selectedTicketType || !buyerName}>
                     ✓ Enregistrer & suivant
@@ -547,12 +566,24 @@ export default function SellerView({ profile }: { profile: Profile }) {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Notes (Placement)</label>
-                <Input 
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700" 
-                  placeholder="Ex: Veut être à la table de..."
-                />
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="Ex: Veut être à la table de..." />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Filière</label>
+                  <Input value={filiere} onChange={(e) => setFiliere(e.target.value.toUpperCase())} className="bg-zinc-800 border-zinc-700" placeholder="Ex: HTR" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Année</label>
+                  <select value={annee} onChange={(e) => setAnnee(e.target.value)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                    <option value="">---</option>
+                    <option value="1">1ère</option>
+                    <option value="2">2ème</option>
+                    <option value="3">3ème</option>
+                    <option value="Externe">Externe</option>
+                  </select>
+                </div>
               </div>
               
               {isQuotaExceeded && (
