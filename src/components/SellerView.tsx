@@ -29,6 +29,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [notes, setNotes] = useState('');
   const [initialPayment, setInitialPayment] = useState(0);
   const [ticketNumber, setTicketNumber] = useState('');
+  const [buyerPhone, setBuyerPhone] = useState('');
 
   // Modal state
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<Sale | null>(null);
@@ -39,6 +40,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [editBuyerName, setEditBuyerName] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editTicketNumber, setEditTicketNumber] = useState('');
+  const [editBuyerPhone, setEditBuyerPhone] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -119,7 +121,8 @@ export default function SellerView({ profile }: { profile: Profile }) {
     const { error } = await supabase.from('sales').update({
       buyer_name: editBuyerName,
       notes: editNotes || null,
-      ticket_number: editTicketNumber || null
+      ticket_number: editTicketNumber || null,
+      buyer_phone: editBuyerPhone || null
     }).eq('id', editingSale.id);
     if (error) { toast.error('Erreur lors de la modification'); return; }
     toast.success('Vente modifiée');
@@ -151,7 +154,8 @@ export default function SellerView({ profile }: { profile: Profile }) {
           final_price: finalPrice,
           seller_id: profile.id,
           notes: notes || null,
-          ticket_number: ticketNumber || null
+          ticket_number: ticketNumber || null,
+          buyer_phone: buyerPhone || null
         }])
         .select()
         .single();
@@ -185,6 +189,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
     setNotes('');
     setInitialPayment(0);
     setTicketNumber('');
+    setBuyerPhone('');
   }
 
   async function handleAddPayment(e: React.FormEvent) {
@@ -345,11 +350,21 @@ export default function SellerView({ profile }: { profile: Profile }) {
                   return (<>
                     {paginated.map((s) => (
                   <ContextMenu key={s.id} items={[
-                    { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingSale(s); setEditBuyerName(s.buyer_name); setEditNotes((s as any).notes || ''); setEditTicketNumber((s as any).ticket_number || ''); } },
+                    { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingSale(s); setEditBuyerName(s.buyer_name); setEditNotes((s as any).notes || ''); setEditTicketNumber((s as any).ticket_number || ''); setEditBuyerPhone((s as any).buyer_phone || ''); } },
                     { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteSale(s.id) }
                   ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                    <TableCell className="font-medium">{s.buyer_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {s.buyer_name}
+                        {(s as any).buyer_phone && (
+                          <a href={`https://wa.me/${(s as any).buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                            className="text-green-500 hover:text-green-400" title={(s as any).buyer_phone}>
+                            📱
+                          </a>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-zinc-500 text-xs">{(s as any).ticket_number || '—'}</TableCell>
                     <TableCell className="text-zinc-400">{s.ticket_type_id}</TableCell>
                     <TableCell>{s.final_price.toLocaleString()} F</TableCell>
@@ -422,12 +437,11 @@ export default function SellerView({ profile }: { profile: Profile }) {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Nom de l'acheteur</label>
-                <Input 
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  required
-                  className="bg-zinc-800 border-zinc-700" 
-                />
+                <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-400 uppercase">WhatsApp acheteur</label>
+                <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="+225 07 00 00 00 00" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Type de Ticket</label>
@@ -517,6 +531,10 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Nom acheteur</label>
                   <Input value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">WhatsApp</label>
+                  <Input value={editBuyerPhone} onChange={(e) => setEditBuyerPhone(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="+225 07 00 00 00 00" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">N° Ticket</label>

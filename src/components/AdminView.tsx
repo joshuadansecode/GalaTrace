@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
-import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight } from 'lucide-react';
+import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2 } from 'lucide-react';
 import { notify } from '../lib/notify';
+import ContextMenu from './ContextMenu';
 
 export default function AdminView({ profile }: { profile: Profile }) {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -38,7 +39,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
       const [usersRes, ttRes, quotasRes, paymentsRes, expensesRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('ticket_types').select('*'),
-        supabase.from('quotas').select('*, seller:profiles!seller_id(full_name, email)').order('created_at', { ascending: false }),
+        supabase.from('quotas').select('*, seller:profiles!seller_id(full_name, email), sales:sales(id)').order('created_at', { ascending: false }),
         supabase.from('payments').select('amount'),
         supabase.from('expenses').select('amount, payment_status, validation_status')
       ]);
@@ -46,7 +47,16 @@ export default function AdminView({ profile }: { profile: Profile }) {
       if (usersRes.error) throw usersRes.error;
       setUsers(usersRes.data || []);
       if (ttRes.data) setTicketTypes(ttRes.data);
-      if (quotasRes.data) setQuotas(quotasRes.data);
+
+      // Enrichir les quotas avec le nombre de ventes réelles
+      if (quotasRes.data) {
+        const { data: salesData } = await supabase.from('sales').select('seller_id, ticket_type_id');
+        const enriched = quotasRes.data.map((q: any) => ({
+          ...q,
+          sales_count: (salesData || []).filter(s => s.seller_id === q.seller_id && s.ticket_type_id === q.ticket_type_id).length
+        }));
+        setQuotas(enriched);
+      }
 
       const encaisse = (paymentsRes.data || []).reduce((acc: number, p: any) => acc + p.amount, 0);
       setTotalEncaisse(encaisse);
@@ -96,8 +106,11 @@ export default function AdminView({ profile }: { profile: Profile }) {
       }
 
       toast.success('Quota attribué avec succès');
+      // Notifier le vendeur
+      const ticketName = ticketTypes.find(t => t.id === selectedTicketTypeId)?.name || selectedTicketTypeId;
+      await notify(selectedSellerId, 'Carnet attribué', `Un quota de ${quotaQuantity} billet(s) ${ticketName} vous a été attribué`, 'success');
       setQuotaQuantity(0);
-      fetchUsers(); // Refresh quotas
+      fetchUsers();
     } catch (error: any) {
       toast.error('Erreur lors de l\'attribution du quota');
     }
@@ -394,22 +407,47 @@ export default function AdminView({ profile }: { profile: Profile }) {
                 <TableRow className="border-zinc-800 hover:bg-transparent">
                   <TableHead className="text-zinc-400">Vendeur</TableHead>
                   <TableHead className="text-zinc-400">Type de Billet</TableHead>
-                  <TableHead className="text-zinc-400">Quantité Allouée</TableHead>
+                  <TableHead className="text-zinc-400">Alloué</TableHead>
+                  <TableHead className="text-zinc-400">Vendus</TableHead>
+                  <TableHead className="text-zinc-400">Restants</TableHead>
+                  <TableHead className="text-zinc-400">Progression</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {quotas.length === 0 ? (
                   <TableRow className="border-zinc-800">
-                    <TableCell colSpan={3} className="text-center text-zinc-500 py-6">Aucun quota défini.</TableCell>
+                    <TableCell colSpan={6} className="text-center text-zinc-500 py-6">Aucun quota défini.</TableCell>
                   </TableRow>
                 ) : (
-                  quotas.map((q) => (
-                    <TableRow key={q.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                      <TableCell className="font-medium">{q.seller?.full_name || q.seller?.email || 'Inconnu'}</TableCell>
-                      <TableCell className="text-zinc-400">{ticketTypes.find(t => t.id === q.ticket_type_id)?.name || q.ticket_type_id}</TableCell>
-                      <TableCell className="font-bold text-amber-500">{q.quantity_given}</TableCell>
-                    </TableRow>
-                  ))
+                  quotas.map((q) => {
+                    const sold = (q.sales_count || 0);
+                    const remaining = Math.max(0, q.quantity_given - sold);
+                    const pct = q.quantity_given > 0 ? Math.min(100, (sold / q.quantity_given) * 100) : 0;
+                    return (
+                      <ContextMenu key={q.id} items={[
+                        { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: async () => {
+                          if (!confirm('Supprimer ce quota ?')) return;
+                          await supabase.from('quotas').delete().eq('id', q.id);
+                          fetchUsers();
+                        }}
+                      ]}>
+                        <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                          <TableCell className="font-medium">{q.seller?.full_name || q.seller?.email || 'Inconnu'}</TableCell>
+                          <TableCell className="text-zinc-400">{ticketTypes.find(t => t.id === q.ticket_type_id)?.name || q.ticket_type_id}</TableCell>
+                          <TableCell className="font-bold text-amber-500">{q.quantity_given}</TableCell>
+                          <TableCell className="font-bold text-blue-400">{sold}</TableCell>
+                          <TableCell className={`font-bold ${remaining === 0 ? 'text-red-400' : 'text-green-400'}`}>{remaining}</TableCell>
+                          <TableCell className="w-32">
+                            <div className="h-2 bg-zinc-700 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-500' : 'bg-green-500'}`}
+                                style={{ width: `${pct}%` }} />
+                            </div>
+                            <p className="text-[10px] text-zinc-500 mt-1">{Math.round(pct)}%</p>
+                          </TableCell>
+                        </TableRow>
+                      </ContextMenu>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

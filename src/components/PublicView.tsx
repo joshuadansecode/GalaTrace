@@ -89,7 +89,15 @@ export default function PublicView() {
                     className="border-zinc-800 hover:bg-zinc-800/50 transition-colors cursor-pointer"
                     onClick={() => openGuest(guest)}
                   >
-                    <TableCell className="font-medium">{guest.buyer_name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {guest.buyer_name}
+                        {guest.buyer_phone && (
+                          <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                            className="text-green-500 hover:text-green-400" title={guest.buyer_phone}>📱</a>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-zinc-500 text-xs">{guest.ticket_number || '—'}</TableCell>
                     <TableCell className="text-zinc-400 text-xs uppercase">{guest.ticket_type_id.replace('_', ' ')}</TableCell>
                     <TableCell className="text-zinc-400 text-sm">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
@@ -152,6 +160,15 @@ export default function PublicView() {
                   <p className="text-zinc-500 text-xs mb-1">Vendeur</p>
                   <p className="font-bold">{selectedGuest.seller?.full_name || selectedGuest.seller?.email || '—'}</p>
                 </div>
+                {selectedGuest.buyer_phone && (
+                  <div className="bg-zinc-900 rounded-lg p-3 col-span-2">
+                    <p className="text-zinc-500 text-xs mb-1">WhatsApp</p>
+                    <a href={`https://wa.me/${selectedGuest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                      className="font-bold text-green-500 hover:underline flex items-center gap-1">
+                      📱 {selectedGuest.buyer_phone}
+                    </a>
+                  </div>
+                )}
                 <div className="bg-zinc-900 rounded-lg p-3">
                   <p className="text-zinc-500 text-xs mb-1">Total payé</p>
                   <p className="font-bold text-green-500">{selectedGuest.total_paid?.toLocaleString()} F</p>
