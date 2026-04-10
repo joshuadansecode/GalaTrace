@@ -23,6 +23,7 @@ export default function PublicView() {
   const [filterTicket, setFilterTicket] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSeller, setFilterSeller] = useState('');
+  const [filterFiliere, setFilterFiliere] = useState('');
   const [sellers, setSellers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function PublicView() {
     .filter(s => !filterTicket || s.ticket_type_id === filterTicket)
     .filter(s => !filterStatus || (filterStatus === 'solde' ? s.remaining_balance === 0 : s.remaining_balance > 0))
     .filter(s => !filterSeller || s.seller?.email === filterSeller)
+    .filter(s => !filterFiliere || (s.filiere || '').toUpperCase().includes(filterFiliere.toUpperCase()))
     .sort((a, b) => {
       const va = a[sortKey] ?? '';
       const vb = b[sortKey] ?? '';
@@ -115,6 +117,13 @@ export default function PublicView() {
           <option value="">Tous les vendeurs</option>
           {sellers.map((s: any) => <option key={s.email} value={s.email}>{s.full_name || s.email}</option>)}
         </select>
+        <input
+          type="text"
+          placeholder="Filière (ex: HTR)"
+          value={filterFiliere}
+          onChange={(e) => { setFilterFiliere(e.target.value); setPage(0); }}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-500 uppercase w-32"
+        />
         <span className="text-xs text-zinc-500 self-center">{filteredGuests.length} résultat(s)</span>
       </div>
 
@@ -126,6 +135,7 @@ export default function PublicView() {
                 <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
                 <TableHead className="text-zinc-400">N°</TableHead>
                 <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
+                <TableHead className="text-zinc-400">Filière</TableHead>
                 <TableHead className="text-zinc-400">Vendeur</TableHead>
                 <TableHead className="text-zinc-400">Table</TableHead>
                 <TableHead className="text-zinc-400">Place</TableHead>
@@ -152,6 +162,10 @@ export default function PublicView() {
                     </TableCell>
                     <TableCell className="text-zinc-500 text-xs">{guest.ticket_number || '—'}</TableCell>
                     <TableCell className="text-zinc-400 text-xs uppercase">{guest.ticket_type_id.replace('_', ' ')}</TableCell>
+                    <TableCell className="text-zinc-400 text-xs">
+                      {guest.filiere ? <span className="font-medium text-white">{guest.filiere}</span> : '—'}
+                      {guest.annee ? <span className="text-zinc-500"> A{guest.annee}</span> : ''}
+                    </TableCell>
                     <TableCell className="text-zinc-400 text-sm">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
                     <TableCell className="text-amber-500 font-medium">{table ? table.name : '---'}</TableCell>
                     <TableCell>{seat ? `N° ${seat.seat_number}` : '---'}</TableCell>
@@ -203,6 +217,10 @@ export default function PublicView() {
                 <div className="bg-zinc-900 rounded-lg p-3">
                   <p className="text-zinc-500 text-xs mb-1">N° Ticket</p>
                   <p className="font-bold">{selectedGuest.ticket_number || '—'}</p>
+                </div>
+                <div className="bg-zinc-900 rounded-lg p-3">
+                  <p className="text-zinc-500 text-xs mb-1">Filière / Année</p>
+                  <p className="font-bold">{selectedGuest.filiere || '—'} {selectedGuest.annee ? `— ${selectedGuest.annee}ère/ème année` : ''}</p>
                 </div>
                 <div className="bg-zinc-900 rounded-lg p-3">
                   <p className="text-zinc-500 text-xs mb-1">Prix final</p>

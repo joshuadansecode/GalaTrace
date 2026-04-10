@@ -340,6 +340,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 <TableRow className="border-zinc-800 hover:bg-transparent">
                   <TableHead className="text-zinc-400">Acheteur</TableHead>
                   <TableHead className="text-zinc-400">N°</TableHead>
+                  <TableHead className="text-zinc-400">Filière</TableHead>
                   <TableHead className="text-zinc-400">Ticket</TableHead>
                   <TableHead className="text-zinc-400">Prix Final</TableHead>
                   <TableHead className="text-zinc-400">Payé</TableHead>
@@ -373,6 +374,10 @@ export default function SellerView({ profile }: { profile: Profile }) {
                       </div>
                     </TableCell>
                     <TableCell className="text-zinc-500 text-xs">{(s as any).ticket_number || '—'}</TableCell>
+                    <TableCell className="text-zinc-400 text-xs">
+                      {(s as any).filiere ? <span className="font-medium text-white">{(s as any).filiere}</span> : '—'}
+                      {(s as any).annee ? <span className="text-zinc-500"> A{(s as any).annee}</span> : ''}
+                    </TableCell>
                     <TableCell className="text-zinc-400">{s.ticket_type_id}</TableCell>
                     <TableCell>{s.final_price.toLocaleString()} F</TableCell>
                     <TableCell>
