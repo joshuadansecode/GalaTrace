@@ -10,6 +10,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -21,14 +22,12 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: { data: { full_name: fullName } }
         });
         if (error) throw error;
-        toast.success('Vérifiez votre email pour confirmer votre inscription !');
+        toast.success('Compte créé ! Un admin doit activer votre accès.');
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success('Connexion réussie');
       }
@@ -55,6 +54,16 @@ export default function Auth() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
+            {isSignUp && (
+              <Input
+                type="text"
+                placeholder="Nom complet"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="bg-zinc-800/50 border-zinc-700 text-white placeholder:text-zinc-500"
+              />
+            )}
             <div className="space-y-2">
               <Input
                 type="email"

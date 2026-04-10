@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Profile } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Profile, ROLE_LABELS } from '../types';
 import { supabase } from '../lib/supabase';
 import { Button } from './ui/button';
 import { 
@@ -7,18 +7,20 @@ import {
   Ticket, 
   Wallet, 
   Users, 
-  Settings, 
   LogOut, 
   Menu, 
   X,
   Armchair,
-  Eye
+  Eye,
+  Trophy,
+  Activity
 } from 'lucide-react';
 import AdminView from './AdminView';
 import SellerView from './SellerView';
 import TreasurerView from './TreasurerView';
 import PlacementView from './PlacementView';
 import PublicView from './PublicView';
+import ActivityFeed from './ActivityFeed';
 
 interface DashboardProps {
   profile: Profile | null;
@@ -28,6 +30,74 @@ interface DashboardProps {
 export default function Dashboard({ profile, session }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<{ name: string; total: number }[]>([]);
+  const [stats, setStats] = useState({ lastSale: '--', totalCaisse: 0 });
+  const [pendingCount, setPendingCount] = useState(0);
+  const [overviewStats, setOverviewStats] = useState({ totalTickets: 0, totalRevenue: 0, seatsOccupied: 0, seatsTotal: 0 });
+
+  useEffect(() => {
+    fetchLeaderboard();
+    fetchStats();
+    if (profile?.role === 'admin') fetchPendingCount();
+    fetchOverviewStats();
+
+    // Realtime: refresh leaderboard + stats on new sales/payments
+    const channel = supabase.channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => { fetchLeaderboard(); fetchOverviewStats(); fetchStats(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => { fetchStats(); fetchOverviewStats(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => { if (profile?.role === 'admin') fetchPendingCount(); })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  async function fetchStats() {
+    const [salesRes, paymentsRes] = await Promise.all([
+      supabase.from('sales').select('buyer_name, ticket_type_id, created_at').order('created_at', { ascending: false }).limit(1),
+      supabase.from('payments').select('amount')
+    ]);
+    const last = salesRes.data?.[0];
+    const total = (paymentsRes.data || []).reduce((acc: number, p: any) => acc + p.amount, 0);
+    setStats({
+      lastSale: last ? `${last.buyer_name} (${last.ticket_type_id})` : '--',
+      totalCaisse: total
+    });
+  }
+
+  async function fetchPendingCount() {
+    const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_active', false);
+    setPendingCount(count || 0);
+  }
+
+  async function fetchOverviewStats() {
+    const [salesRes, seatsRes] = await Promise.all([
+      supabase.from('sales').select('final_price'),
+      supabase.from('seats').select('sale_id')
+    ]);
+    const tickets = (salesRes.data || []).length;
+    const revenue = (salesRes.data || []).reduce((a: number, s: any) => a + s.final_price, 0);
+    const allSeats = seatsRes.data || [];
+    setOverviewStats({
+      totalTickets: tickets,
+      totalRevenue: revenue,
+      seatsOccupied: allSeats.filter((s: any) => s.sale_id).length,
+      seatsTotal: allSeats.length
+    });
+  }
+
+  async function fetchLeaderboard() {
+    const { data } = await supabase
+      .from('sales')
+      .select('final_price, seller:profiles!seller_id(full_name, email)');
+    if (!data) return;
+    const map: Record<string, { name: string; total: number }> = {};
+    data.forEach((s: any) => {
+      const key = s.seller?.full_name || s.seller?.email || 'Inconnu';
+      if (!map[key]) map[key] = { name: key, total: 0 };
+      map[key].total += s.final_price;
+    });
+    setLeaderboard(Object.values(map).sort((a, b) => b.total - a.total).slice(0, 3));
+  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -50,6 +120,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
     { id: 'admin', label: 'Administration', icon: Users, roles: ['admin'] },
     { id: 'placement', label: 'Placement', icon: Armchair, roles: ['admin', 'direction'] },
     { id: 'public', label: 'Liste Invités', icon: Eye, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
+    { id: 'activity', label: 'Flux d\'Activité', icon: Activity, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
   ];
 
   const filteredMenu = menuItems.filter(item => item.roles.includes(profile.role));
@@ -66,29 +137,80 @@ export default function Dashboard({ profile, session }: DashboardProps) {
         return <PlacementView profile={profile} />;
       case 'public':
         return <PublicView />;
+      case 'activity':
+        return <ActivityFeed profile={profile} />;
       default:
         return (
           <div className="space-y-6">
             <header>
               <h1 className="text-3xl font-bold tracking-tight">Bienvenue, {profile.full_name || profile.email}</h1>
-              <p className="text-zinc-400">Rôle : <span className="capitalize text-amber-500 font-medium">{profile.role}</span></p>
+              <p className="text-zinc-400">Rôle : <span className="capitalize text-amber-500 font-medium">{ROLE_LABELS[profile.role]}</span></p>
             </header>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Quick Stats or Welcome Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Statut Global</h3>
-                <p className="text-2xl font-bold">En cours</p>
+                <h3 className="text-sm font-medium text-zinc-400 mb-2">Tickets Vendus</h3>
+                <p className="text-2xl font-bold">{overviewStats.totalTickets}</p>
               </div>
               <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Dernière Vente</h3>
-                <p className="text-2xl font-bold">--</p>
+                <h3 className="text-sm font-medium text-zinc-400 mb-2">Chiffre d'Affaires</h3>
+                <p className="text-2xl font-bold text-amber-500">{overviewStats.totalRevenue.toLocaleString()} F</p>
               </div>
               <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Caisse</h3>
-                <p className="text-2xl font-bold">0 FCFA</p>
+                <h3 className="text-sm font-medium text-zinc-400 mb-2">Caisse Encaissée</h3>
+                <p className="text-2xl font-bold text-green-500">{stats.totalCaisse.toLocaleString()} F</p>
+              </div>
+              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
+                <h3 className="text-sm font-medium text-zinc-400 mb-2">Taux de Placement</h3>
+                <p className="text-2xl font-bold">
+                  {overviewStats.seatsTotal > 0 ? `${overviewStats.seatsOccupied}/${overviewStats.seatsTotal}` : '—'}
+                </p>
+                {overviewStats.seatsTotal > 0 && (
+                  <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${(overviewStats.seatsOccupied / overviewStats.seatsTotal) * 100}%` }} />
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Podium Vendeurs */}
+            {leaderboard.length > 0 && (
+              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
+                <div className="flex items-center gap-2 mb-6">
+                  <Trophy className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-bold">Podium des Vendeurs</h3>
+                </div>
+                <div className="flex items-end justify-center gap-4">
+                  {leaderboard[1] && (
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-3xl">🥈</span>
+                      <div className="bg-zinc-700 rounded-t-lg w-24 h-20 flex flex-col items-center justify-center px-2">
+                        <p className="text-xs font-bold text-center truncate w-full text-center">{leaderboard[1].name}</p>
+                        <p className="text-xs text-zinc-400">{leaderboard[1].total.toLocaleString()} F</p>
+                      </div>
+                    </div>
+                  )}
+                  {leaderboard[0] && (
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-3xl">🥇</span>
+                      <div className="bg-amber-500/20 border border-amber-500/30 rounded-t-lg w-24 h-28 flex flex-col items-center justify-center px-2">
+                        <p className="text-xs font-bold text-center truncate w-full text-center text-amber-400">{leaderboard[0].name}</p>
+                        <p className="text-xs text-amber-500 font-bold">{leaderboard[0].total.toLocaleString()} F</p>
+                      </div>
+                    </div>
+                  )}
+                  {leaderboard[2] && (
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-3xl">🥉</span>
+                      <div className="bg-zinc-800 rounded-t-lg w-24 h-14 flex flex-col items-center justify-center px-2">
+                        <p className="text-xs font-bold text-center truncate w-full text-center">{leaderboard[2].name}</p>
+                        <p className="text-xs text-zinc-400">{leaderboard[2].total.toLocaleString()} F</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
     }
@@ -134,6 +256,11 @@ export default function Dashboard({ profile, session }: DashboardProps) {
               >
                 <item.icon className="w-5 h-5" />
                 {item.label}
+                {item.id === 'admin' && pendingCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {pendingCount}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -145,7 +272,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{profile.full_name || 'Utilisateur'}</p>
-                <p className="text-xs text-zinc-500 truncate">{profile.email}</p>
+                <p className="text-xs text-zinc-500 truncate">{ROLE_LABELS[profile.role]}</p>
               </div>
             </div>
             <button

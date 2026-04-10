@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, UserRole, TicketType, Quota } from '../types';
+import { Profile, UserRole, TicketType, Quota, ROLE_LABELS } from '../types';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
-import { UserPlus, Shield, RefreshCw, Ticket, Download } from 'lucide-react';
+import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight } from 'lucide-react';
 
 export default function AdminView({ profile }: { profile: Profile }) {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -18,10 +18,14 @@ export default function AdminView({ profile }: { profile: Profile }) {
 
   // Quotas state
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [quotas, setQuotas] = useState<any[]>([]); // Any because we join seller info
+  const [quotas, setQuotas] = useState<any[]>([]);
   const [selectedSellerId, setSelectedSellerId] = useState('');
   const [selectedTicketTypeId, setSelectedTicketTypeId] = useState('');
   const [quotaQuantity, setQuotaQuantity] = useState(0);
+
+  // Financial summary
+  const [totalEncaisse, setTotalEncaisse] = useState(0);
+  const [totalDepensesActees, setTotalDepensesActees] = useState(0);
 
   useEffect(() => {
     fetchUsers();
@@ -30,16 +34,26 @@ export default function AdminView({ profile }: { profile: Profile }) {
   async function fetchUsers() {
     setLoading(true);
     try {
-      const [usersRes, ttRes, quotasRes] = await Promise.all([
+      const [usersRes, ttRes, quotasRes, paymentsRes, expensesRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('ticket_types').select('*'),
-        supabase.from('quotas').select('*, seller:profiles!seller_id(full_name, email)').order('created_at', { ascending: false })
+        supabase.from('quotas').select('*, seller:profiles!seller_id(full_name, email)').order('created_at', { ascending: false }),
+        supabase.from('payments').select('amount'),
+        supabase.from('expenses').select('amount, payment_status, validation_status')
       ]);
 
       if (usersRes.error) throw usersRes.error;
       setUsers(usersRes.data || []);
       if (ttRes.data) setTicketTypes(ttRes.data);
       if (quotasRes.data) setQuotas(quotasRes.data);
+
+      const encaisse = (paymentsRes.data || []).reduce((acc: number, p: any) => acc + p.amount, 0);
+      setTotalEncaisse(encaisse);
+
+      const depensesActees = (expensesRes.data || [])
+        .filter((e: any) => e.payment_status === 'reglee' && e.validation_status === 'validee')
+        .reduce((acc: number, e: any) => acc + e.amount, 0);
+      setTotalDepensesActees(depensesActees);
     } catch (error: any) {
       toast.error('Erreur lors du chargement des utilisateurs');
     } finally {
@@ -90,11 +104,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
 
   async function updateRole(userId: string, newRole: UserRole) {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-
+      const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId);
       if (error) throw error;
       toast.success('Rôle mis à jour');
       fetchUsers();
@@ -103,42 +113,46 @@ export default function AdminView({ profile }: { profile: Profile }) {
     }
   }
 
+  async function toggleActive(userId: string, current: boolean) {
+    const { error } = await supabase.from('profiles').update({ is_active: !current }).eq('id', userId);
+    if (error) { toast.error('Erreur'); return; }
+    toast.success(current ? 'Compte désactivé' : 'Compte activé');
+    fetchUsers();
+  }
+
   async function handleExportSales() {
     try {
       toast.info('Préparation du fichier CSV...');
-      
       const { data, error } = await supabase
         .from('sales')
-        .select(`
-          *,
-          payments(amount),
-          seller:profiles!seller_id(full_name, email)
-        `);
-
+        .select('*, payments(amount, created_at), seller:profiles!seller_id(full_name, email), seat:seats(seat_number, table:tables(name))');
       if (error) throw error;
-      
-      if (!data || data.length === 0) {
-        toast.error('Aucune vente à exporter.');
-        return;
-      }
+      if (!data || data.length === 0) { toast.error('Aucune vente à exporter.'); return; }
 
-      // BOM for UTF-8 Excel compatibility
-      let csvContent = '\uFEFF'; 
-      csvContent += "Date,Acheteur,Type de Billet,Vendeur,Prix Final,Total Payé,Reste à Payer,Notes\n";
+      let csvContent = '\uFEFF';
+      csvContent += "Date,N° Ticket,Acheteur,Type de Billet,Vendeur,Prix Base,Réduction,Prix Final,Total Payé,Reste à Payer,Table,Place,Notes\n";
 
       data.forEach((s: any) => {
         const date = new Date(s.created_at).toLocaleString('fr-FR');
-        const buyer = `"${(s.buyer_name || '').replace(/"/g, '""')}"`;
         const ticketName = ticketTypes.find(t => t.id === s.ticket_type_id)?.name || s.ticket_type_id;
-        const ticket = `"${ticketName.replace(/"/g, '""')}"`;
-        const sellerName = s.seller?.full_name || s.seller?.email || '';
-        const seller = `"${sellerName.replace(/"/g, '""')}"`;
-        const finalPrice = s.final_price || 0;
         const totalPaid = s.payments ? s.payments.reduce((acc: number, p: any) => acc + p.amount, 0) : 0;
-        const remaining = finalPrice - totalPaid;
-        const notes = `"${(s.notes || '').replace(/"/g, '""')}"`;
-
-        csvContent += `${date},${buyer},${ticket},${seller},${finalPrice},${totalPaid},${remaining},${notes}\n`;
+        const seat = s.seat?.[0];
+        const row = [
+          date,
+          s.ticket_number || '',
+          s.buyer_name || '',
+          ticketName,
+          s.seller?.full_name || s.seller?.email || '',
+          s.base_price || 0,
+          s.discount_amount || 0,
+          s.final_price || 0,
+          totalPaid,
+          (s.final_price || 0) - totalPaid,
+          seat?.table?.name || '',
+          seat ? `N°${seat.seat_number}` : '',
+          s.notes || ''
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+        csvContent += row + '\n';
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -149,7 +163,6 @@ export default function AdminView({ profile }: { profile: Profile }) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       toast.success('Téléchargement terminé');
     } catch (error: any) {
       toast.error('Erreur lors de l\'exportation');
@@ -174,6 +187,38 @@ export default function AdminView({ profile }: { profile: Profile }) {
         </div>
       </header>
 
+      {/* Panneau financier — Admin uniquement */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Wallet className="w-5 h-5 text-green-500" />
+              <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Fonds Encaissés</span>
+            </div>
+            <p className="text-2xl font-bold text-green-500">{totalEncaisse.toLocaleString()} F</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-2">
+              <TrendingDown className="w-5 h-5 text-red-400" />
+              <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Dépenses Actées</span>
+            </div>
+            <p className="text-2xl font-bold text-red-400">{totalDepensesActees.toLocaleString()} F</p>
+            <p className="text-xs text-zinc-600 mt-1">Réglées + validées uniquement</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-amber-500/10 border-amber-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-2">
+              <ArrowDownRight className="w-5 h-5 text-amber-500" />
+              <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">Reste en Caisse</span>
+            </div>
+            <p className="text-2xl font-bold text-amber-500">{(totalEncaisse - totalDepensesActees).toLocaleString()} F</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 bg-zinc-900 border-zinc-800">
           <CardHeader>
@@ -187,6 +232,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
                   <TableHead className="text-zinc-400">Nom</TableHead>
                   <TableHead className="text-zinc-400">Email</TableHead>
                   <TableHead className="text-zinc-400">Rôle</TableHead>
+                  <TableHead className="text-zinc-400">Statut</TableHead>
                   <TableHead className="text-zinc-400 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -202,14 +248,20 @@ export default function AdminView({ profile }: { profile: Profile }) {
                           u.role === 'tresoriere' ? 'bg-green-500/10 text-green-500' : 
                           'bg-blue-500/10 text-blue-500'}
                       `}>
-                        {u.role}
+                        {ROLE_LABELS[u.role]}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Select 
-                        defaultValue={u.role} 
-                        onValueChange={(val) => updateRole(u.id, val as UserRole)}
+                    <TableCell>
+                      <button
+                        onClick={() => toggleActive(u.id, u.is_active)}
+                        className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full transition-colors
+                          ${u.is_active ? 'bg-green-500/10 text-green-500 hover:bg-red-500/10 hover:text-red-400' : 'bg-red-500/10 text-red-400 hover:bg-green-500/10 hover:text-green-500'}`}
                       >
+                        {u.is_active ? 'Actif' : 'Inactif'}
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Select defaultValue={u.role} onValueChange={(val) => updateRole(u.id, val as UserRole)}>
                         <SelectTrigger className="w-[130px] bg-zinc-800 border-zinc-700 h-8 text-xs">
                           <SelectValue />
                         </SelectTrigger>
@@ -217,8 +269,8 @@ export default function AdminView({ profile }: { profile: Profile }) {
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="vendeur">Vendeur</SelectItem>
                           <SelectItem value="comite">Comité</SelectItem>
-                          <SelectItem value="tresoriere">Trésorière</SelectItem>
-                          <SelectItem value="tresoriere_generale">Trésorière Générale</SelectItem>
+                          <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
+                          <SelectItem value="tresoriere_generale">Comptable</SelectItem>
                           <SelectItem value="direction">Direction</SelectItem>
                           <SelectItem value="observateur">Observateur</SelectItem>
                         </SelectContent>
@@ -269,8 +321,10 @@ export default function AdminView({ profile }: { profile: Profile }) {
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
                     <SelectItem value="vendeur">Vendeur</SelectItem>
                     <SelectItem value="comite">Comité</SelectItem>
-                    <SelectItem value="tresoriere">Trésorière</SelectItem>
+                    <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
+                    <SelectItem value="tresoriere_generale">Comptable</SelectItem>
                     <SelectItem value="direction">Direction</SelectItem>
+                    <SelectItem value="observateur">Observateur</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

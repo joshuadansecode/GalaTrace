@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Profile, CashTransfer } from '../types';
+import { Profile, CashTransfer, Expense } from '../types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
-import { Wallet, ArrowUpRight, CheckCircle2, XCircle, Clock, Plus, BarChart3, TrendingUp } from 'lucide-react';
+import { Wallet, ArrowUpRight, CheckCircle2, XCircle, Clock, Plus, BarChart3, TrendingUp, Receipt, Trash2 } from 'lucide-react';
+import ContextMenu from './ContextMenu';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function TreasurerView({ profile }: { profile: Profile }) {
@@ -21,25 +22,39 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
 
   // Unpaid sales and payments
   const [unpaidSales, setUnpaidSales] = useState<any[]>([]);
-  const [allSales, setAllSales] = useState<any[]>([]); // Added for charts
+  const [allSales, setAllSales] = useState<any[]>([]);
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<any | null>(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
 
+  // Expenses
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseAuthor, setExpenseAuthor] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState(0);
+  const [expensePaymentStatus, setExpensePaymentStatus] = useState<'reglee' | 'non_reglee'>('non_reglee');
+
   useEffect(() => {
     fetchData();
+    const channel = supabase.channel('treasurer-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'cash_transfers' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   async function fetchData() {
     setLoading(true);
     try {
-      const [transfersRes, profilesRes, salesRes] = await Promise.all([
+      const [transfersRes, profilesRes, salesRes, expensesRes] = await Promise.all([
         supabase
           .from('cash_transfers')
           .select('*, from:profiles!from_id(full_name, email), to:profiles!to_id(full_name, email)')
           .or(`from_id.eq.${profile.id},to_id.eq.${profile.id}`)
           .order('created_at', { ascending: false }),
         supabase.from('profiles').select('*'),
-        supabase.from('sales').select('*, payments(amount), seller:profiles!seller_id(full_name, email)')
+        supabase.from('sales').select('*, payments(amount), seller:profiles!seller_id(full_name, email)'),
+        supabase.from('expenses').select('*').order('created_at', { ascending: false })
       ]);
 
       if (transfersRes.error) throw transfersRes.error;
@@ -49,14 +64,11 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
       setTransfers(transfersRes.data || []);
       setProfiles(profilesRes.data || []);
       setAllSales(salesRes.data || []);
+      setExpenses(expensesRes.data || []);
 
       const processedSales = (salesRes.data || []).map((s: any) => {
         const totalPaid = s.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
-        return {
-          ...s,
-          total_paid: totalPaid,
-          remaining_balance: s.final_price - totalPaid
-        };
+        return { ...s, total_paid: totalPaid, remaining_balance: s.final_price - totalPaid };
       }).filter((s: any) => s.remaining_balance > 0);
 
       setUnpaidSales(processedSales);
@@ -128,6 +140,49 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de l\'enregistrement du paiement');
     }
+  }
+
+  async function handleCreateExpense(e: React.FormEvent) {
+    e.preventDefault();
+    if (!expenseTitle || !expenseAuthor || expenseAmount <= 0) return;
+    try {
+      const { error } = await supabase.from('expenses').insert([{
+        title: expenseTitle,
+        author: expenseAuthor,
+        amount: expenseAmount,
+        payment_status: expensePaymentStatus,
+        created_by: profile.id
+      }]);
+      if (error) throw error;
+      toast.success('Dépense enregistrée');
+      setExpenseTitle(''); setExpenseAuthor(''); setExpenseAmount(0); setExpensePaymentStatus('non_reglee');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erreur lors de l\'enregistrement');
+    }
+  }
+
+  async function handleValidateExpense(expenseId: string, status: 'validee' | 'rejetee') {
+    try {
+      const { error } = await supabase.from('expenses').update({
+        validation_status: status,
+        validated_by: profile.id,
+        validated_at: new Date().toISOString()
+      }).eq('id', expenseId);
+      if (error) throw error;
+      toast.success(status === 'validee' ? 'Dépense validée' : 'Dépense rejetée');
+      fetchData();
+    } catch (error: any) {
+      toast.error('Erreur lors de la mise à jour');
+    }
+  }
+
+  async function handleDeleteExpense(expenseId: string) {
+    if (!confirm('Supprimer cette dépense ?')) return;
+    const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+    if (error) { toast.error('Erreur lors de la suppression'); return; }
+    toast.success('Dépense supprimée');
+    fetchData();
   }
 
   // Chart Data Computation
@@ -398,7 +453,7 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                         className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
                         onClick={() => {
                           setSelectedSaleForPayment(s);
-                          setPaymentAmount(s.remaining_balance || 0);
+                          setPaymentAmount(0);
                         }}
                       >
                         Encaisser
@@ -411,6 +466,108 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Module Dépenses */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <Card className="lg:col-span-2 bg-zinc-900 border-zinc-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-amber-500" />
+              Dépenses déclarées
+            </CardTitle>
+            <CardDescription>Liste de toutes les dépenses soumises à validation.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow className="border-zinc-800 hover:bg-transparent">
+                  <TableHead className="text-zinc-400">Titre</TableHead>
+                  <TableHead className="text-zinc-400">Bénéficiaire</TableHead>
+                  <TableHead className="text-zinc-400">Montant</TableHead>
+                  <TableHead className="text-zinc-400">Paiement</TableHead>
+                  <TableHead className="text-zinc-400">Statut</TableHead>
+                  {profile.role === 'tresoriere_generale' && <TableHead className="text-zinc-400 text-right">Action</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenses.length === 0 ? (
+                  <TableRow className="border-zinc-800">
+                    <TableCell colSpan={6} className="text-center text-zinc-500 py-6">Aucune dépense enregistrée.</TableCell>
+                  </TableRow>
+                ) : expenses.map((exp) => (
+                  <ContextMenu key={exp.id} items={[
+                    ...(exp.validation_status === 'en_attente' ? [{ label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteExpense(exp.id) }] : [])
+                  ]}>
+                  <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                    <TableCell className="font-medium">{exp.title}</TableCell>
+                    <TableCell className="text-zinc-400">{exp.author}</TableCell>
+                    <TableCell className="font-bold text-red-400">{exp.amount.toLocaleString()} F</TableCell>
+                    <TableCell>
+                      <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${exp.payment_status === 'reglee' ? 'bg-green-500/10 text-green-500' : 'bg-zinc-700 text-zinc-400'}`}>
+                        {exp.payment_status === 'reglee' ? 'Réglée' : 'Non réglée'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {exp.validation_status === 'en_attente' && <span className="flex items-center gap-1 text-amber-500 text-xs font-bold uppercase"><Clock className="w-3 h-3" /> En attente</span>}
+                      {exp.validation_status === 'validee' && <span className="flex items-center gap-1 text-green-500 text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3" /> Validée</span>}
+                      {exp.validation_status === 'rejetee' && <span className="flex items-center gap-1 text-red-500 text-xs font-bold uppercase"><XCircle className="w-3 h-3" /> Rejetée</span>}
+                    </TableCell>
+                    {profile.role === 'tresoriere_generale' && (
+                      <TableCell className="text-right">
+                        {exp.validation_status === 'en_attente' && (
+                          <div className="flex justify-end gap-2">
+                            <Button size="sm" variant="outline" className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10" onClick={() => handleValidateExpense(exp.id, 'validee')}>Valider</Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={() => handleValidateExpense(exp.id, 'rejetee')}>Rejeter</Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                  </ContextMenu>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {profile.role === 'tresoriere' && (
+          <Card className="bg-zinc-900 border-zinc-800 h-fit">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="w-5 h-5 text-amber-500" />
+                Déclarer une dépense
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateExpense} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Titre</label>
+                  <Input value={expenseTitle} onChange={(e) => setExpenseTitle(e.target.value)} required className="bg-zinc-800 border-zinc-700" placeholder="Ex: DJ Patrick" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Bénéficiaire</label>
+                  <Input value={expenseAuthor} onChange={(e) => setExpenseAuthor(e.target.value)} required className="bg-zinc-800 border-zinc-700" placeholder="Ex: M. Koné" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Montant (F)</label>
+                  <Input type="number" min={1} value={expenseAmount || ''} onChange={(e) => setExpenseAmount(Number(e.target.value))} required className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">État du paiement</label>
+                  <Select value={expensePaymentStatus} onValueChange={(v) => setExpensePaymentStatus(v as any)}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectItem value="non_reglee">Non réglée</SelectItem>
+                      <SelectItem value="reglee">Réglée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700">Enregistrer</Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Modal d'ajout de paiement partiel pour le Trésorier */}
       {selectedSaleForPayment && (

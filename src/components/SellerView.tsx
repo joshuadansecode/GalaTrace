@@ -7,14 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { toast } from 'sonner';
-import { Plus, Search, Wallet, Ticket, PieChart as PieChartIcon } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Plus, Wallet, Ticket, PieChart as PieChartIcon, Pencil, Trash2 } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import ContextMenu from './ContextMenu';
 
 export default function SellerView({ profile }: { profile: Profile }) {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [quotas, setQuotas] = useState<Quota[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   // Form state
   const [buyerName, setBuyerName] = useState('');
@@ -23,13 +27,25 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [discountSource, setDiscountSource] = useState('');
   const [notes, setNotes] = useState('');
   const [initialPayment, setInitialPayment] = useState(0);
+  const [ticketNumber, setTicketNumber] = useState('');
 
   // Modal state
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<Sale | null>(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
 
+  // Edit state
+  const [editingSale, setEditingSale] = useState<any | null>(null);
+  const [editBuyerName, setEditBuyerName] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editTicketNumber, setEditTicketNumber] = useState('');
+
   useEffect(() => {
     fetchData();
+    const channel = supabase.channel('seller-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales', filter: `seller_id=eq.${profile.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, fetchData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   async function fetchData() {
@@ -88,6 +104,28 @@ export default function SellerView({ profile }: { profile: Profile }) {
   })).filter(d => d.value > 0);
   const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
 
+  async function handleDeleteSale(saleId: string) {
+    if (!confirm('Supprimer cette vente ? Cette action est irréversible.')) return;
+    const { error } = await supabase.from('sales').delete().eq('id', saleId);
+    if (error) { toast.error('Erreur lors de la suppression'); return; }
+    toast.success('Vente supprimée');
+    fetchData();
+  }
+
+  async function handleEditSale(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingSale) return;
+    const { error } = await supabase.from('sales').update({
+      buyer_name: editBuyerName,
+      notes: editNotes || null,
+      ticket_number: editTicketNumber || null
+    }).eq('id', editingSale.id);
+    if (error) { toast.error('Erreur lors de la modification'); return; }
+    toast.success('Vente modifiée');
+    setEditingSale(null);
+    fetchData();
+  }
+
   async function handleSale(e: React.FormEvent) {
     e.preventDefault();
     const type = ticketTypes.find(t => t.id === selectedTicketType);
@@ -111,7 +149,8 @@ export default function SellerView({ profile }: { profile: Profile }) {
           discount_source: discountSource || null,
           final_price: finalPrice,
           seller_id: profile.id,
-          notes: notes || null
+          notes: notes || null,
+          ticket_number: ticketNumber || null
         }])
         .select()
         .single();
@@ -144,6 +183,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
     setDiscountSource('');
     setNotes('');
     setInitialPayment(0);
+    setTicketNumber('');
   }
 
   async function handleAddPayment(e: React.FormEvent) {
@@ -259,10 +299,20 @@ export default function SellerView({ profile }: { profile: Profile }) {
             <CardDescription>Historique de vos transactions.</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 relative">
+              <input
+                type="text"
+                placeholder="Rechercher par nom ou N° ticket..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+              />
+            </div>
             <Table>
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
                   <TableHead className="text-zinc-400">Acheteur</TableHead>
+                  <TableHead className="text-zinc-400">N°</TableHead>
                   <TableHead className="text-zinc-400">Ticket</TableHead>
                   <TableHead className="text-zinc-400">Prix Final</TableHead>
                   <TableHead className="text-zinc-400">Payé</TableHead>
@@ -271,9 +321,21 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map((s) => (
-                  <TableRow key={s.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                {(() => {
+                  const filtered = sales.filter(s =>
+                    s.buyer_name.toLowerCase().includes(search.toLowerCase()) ||
+                    ((s as any).ticket_number || '').toLowerCase().includes(search.toLowerCase())
+                  );
+                  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+                  return (<>
+                    {paginated.map((s) => (
+                  <ContextMenu key={s.id} items={[
+                    { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingSale(s); setEditBuyerName(s.buyer_name); setEditNotes((s as any).notes || ''); setEditTicketNumber((s as any).ticket_number || ''); } },
+                    { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteSale(s.id) }
+                  ]}>
+                  <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                     <TableCell className="font-medium">{s.buyer_name}</TableCell>
+                    <TableCell className="text-zinc-500 text-xs">{(s as any).ticket_number || '—'}</TableCell>
                     <TableCell className="text-zinc-400">{s.ticket_type_id}</TableCell>
                     <TableCell>{s.final_price.toLocaleString()} F</TableCell>
                     <TableCell>
@@ -294,23 +356,34 @@ export default function SellerView({ profile }: { profile: Profile }) {
                     </TableCell>
                     <TableCell className="text-right">
                       {s.remaining_balance! > 0 && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
+                        <Button size="sm" variant="outline"
                           className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
-                          onClick={() => {
-                            setSelectedSaleForPayment(s);
-                            setPaymentAmount(s.remaining_balance || 0);
-                          }}
+                          onClick={() => { setSelectedSaleForPayment(s); setPaymentAmount(0); }}
                         >
                           Encaisser
                         </Button>
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                  </ContextMenu>
+                    ))}
+                    {filtered.length === 0 && (
+                      <TableRow className="border-zinc-800">
+                        <TableCell colSpan={7} className="text-center text-zinc-500 py-6">Aucune vente trouvée.</TableCell>
+                      </TableRow>
+                    )}
+                  </>);
+                })()}
               </TableBody>
             </Table>
+            {/* Pagination */}
+            {sales.filter(s => s.buyer_name.toLowerCase().includes(search.toLowerCase()) || ((s as any).ticket_number || '').toLowerCase().includes(search.toLowerCase())).length > PAGE_SIZE && (
+              <div className="flex justify-between items-center mt-4 text-sm text-zinc-400">
+                <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded bg-zinc-800 disabled:opacity-30 hover:bg-zinc-700">← Précédent</button>
+                <span>Page {page + 1}</span>
+                <button disabled={(page + 1) * PAGE_SIZE >= sales.length} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded bg-zinc-800 disabled:opacity-30 hover:bg-zinc-700">Suivant →</button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -323,6 +396,15 @@ export default function SellerView({ profile }: { profile: Profile }) {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSale} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-400 uppercase">N° de Ticket</label>
+                <Input 
+                  value={ticketNumber}
+                  onChange={(e) => setTicketNumber(e.target.value)}
+                  className="bg-zinc-800 border-zinc-700" 
+                  placeholder="Ex: T-001"
+                />
+              </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Nom de l'acheteur</label>
                 <Input 
@@ -404,6 +486,40 @@ export default function SellerView({ profile }: { profile: Profile }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal édition vente */}
+      {editingSale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-sm bg-zinc-950 border-zinc-800 shadow-2xl">
+            <CardHeader className="border-b border-zinc-800 pb-4">
+              <CardTitle className="flex justify-between items-center">
+                Modifier la vente
+                <button onClick={() => setEditingSale(null)} className="text-zinc-500 hover:text-white"><Plus className="w-5 h-5 rotate-45" /></button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <form onSubmit={handleEditSale} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Nom acheteur</label>
+                  <Input value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">N° Ticket</label>
+                  <Input value={editTicketNumber} onChange={(e) => setEditTicketNumber(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Notes</label>
+                  <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" className="flex-1 border-zinc-700" onClick={() => setEditingSale(null)}>Annuler</Button>
+                  <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700">Enregistrer</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Modal d'ajout de paiement partiel */}
       {selectedSaleForPayment && (

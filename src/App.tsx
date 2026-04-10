@@ -67,6 +67,15 @@ export default function App() {
       <Toaster position="top-right" theme="dark" />
       {!session ? (
         <Auth />
+      ) : profile && !profile.is_active ? (
+        <div className="h-screen flex flex-col items-center justify-center p-6 text-center gap-4">
+          <div className="p-3 bg-amber-500/10 rounded-full border border-amber-500/20">
+            <Loader2 className="w-8 h-8 text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-bold">Compte en attente de validation</h2>
+          <p className="text-zinc-400 max-w-sm">Votre compte a été créé. Un administrateur doit l'activer avant que vous puissiez accéder à l'application.</p>
+          <button onClick={() => supabase.auth.signOut()} className="text-sm text-zinc-500 hover:text-white mt-2">Se déconnecter</button>
+        </div>
       ) : (
         <Dashboard profile={profile} session={session} />
       )}

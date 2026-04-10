@@ -1,10 +1,34 @@
 export type UserRole = 'admin' | 'vendeur' | 'comite' | 'tresoriere' | 'tresoriere_generale' | 'direction' | 'observateur';
 
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Admin',
+  vendeur: 'Vendeur',
+  comite: 'Comité',
+  tresoriere: 'Trésorière Générale',
+  tresoriere_generale: 'Comptable',
+  direction: 'Direction',
+  observateur: 'Observateur',
+};
+
+export interface Expense {
+  id: string;
+  title: string;
+  author: string;
+  amount: number;
+  payment_status: 'reglee' | 'non_reglee';
+  validation_status: 'en_attente' | 'validee' | 'rejetee';
+  created_by: string;
+  validated_by: string | null;
+  validated_at: string | null;
+  created_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
   role: UserRole;
+  is_active: boolean;
   created_at: string;
 }
 
