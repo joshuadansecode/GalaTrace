@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { X, Camera, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { notifyRole } from '../lib/notify';
 
 interface Props {
   profile: Profile;
@@ -61,6 +62,8 @@ export default function ProfileModal({ profile, onClose, onUpdated }: Props) {
         .eq('id', profile.id);
 
       if (error) throw error;
+      // Notifier l'admin
+      await notifyRole('admin', 'Modification de profil en attente', `${profile.full_name || profile.email} a soumis des modifications à valider`, 'warning');
       toast.success('Modifications envoyées — en attente de validation par l\'admin');
       onUpdated();
       onClose();

@@ -246,9 +246,6 @@ export default function Dashboard({ profile, session }: DashboardProps) {
               <Ticket className="w-6 h-6 text-black" />
             </div>
             <span className="text-xl font-bold tracking-tight">GalaTrace</span>
-            <div className="ml-auto">
-              <NotificationBell userId={profile.id} />
-            </div>
           </div>
 
           <nav className="flex-1 space-y-1">
@@ -308,8 +305,11 @@ export default function Dashboard({ profile, session }: DashboardProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 lg:p-10">
-        <div className="max-w-6xl mx-auto">
+      <main className="flex-1 overflow-y-auto bg-[#0a0a0a]">
+        <div className="flex justify-end items-center px-6 lg:px-10 pt-4">
+          <NotificationBell userId={profile.id} />
+        </div>
+        <div className="max-w-6xl mx-auto px-6 lg:px-10 pb-10">
           {renderContent()}
         </div>
       </main>
