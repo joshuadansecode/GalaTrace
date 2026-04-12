@@ -171,7 +171,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
 
       <Card className="bg-card border-border">
         <CardContent className="p-0">
-          <Table className="min-w-[700px]">
+          <Table className="table-fixed w-full">
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground cursor-pointer w-[25%]" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
@@ -215,7 +215,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                         ? <span className="font-medium text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
                         : '—'}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm hidden lg:table-cell w-[12%] truncate max-w-0">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm hidden lg:table-cell w-[12%] truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
                     <TableCell className="text-green-500 font-bold text-sm hidden sm:table-cell w-[9%] text-right tabular-nums">{guest.total_paid?.toLocaleString()} F</TableCell>
                     <TableCell className={`font-bold text-sm w-[9%] text-right tabular-nums ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
                     <TableCell className="text-amber-500 text-xs hidden md:table-cell w-[9%]">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</TableCell>
