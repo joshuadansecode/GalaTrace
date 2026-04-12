@@ -65,7 +65,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#0a0a0a] text-white">
+      <div className="h-screen w-full flex items-center justify-center bg-background text-foreground">
         <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
       </div>
     );
@@ -74,12 +74,12 @@ export default function App() {
   // Écran réinitialisation mot de passe
   if (isPasswordRecovery) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center p-4">
-        <Toaster position="top-right" theme="dark" />
-        <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-5">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+        <Toaster position="top-right" />
+        <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-5">
           <div className="text-center">
             <h2 className="text-xl font-bold mb-1">Nouveau mot de passe</h2>
-            <p className="text-zinc-400 text-sm">Choisissez un nouveau mot de passe sécurisé.</p>
+            <p className="text-muted-foreground text-sm">Choisissez un nouveau mot de passe sécurisé.</p>
           </div>
           <form onSubmit={handlePasswordUpdate} className="space-y-4">
             <Input
@@ -88,7 +88,6 @@ export default function App() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
-              className="bg-zinc-800 border-zinc-700 text-white"
             />
             <Button type="submit" disabled={savingPassword} className="w-full bg-amber-600 hover:bg-amber-700">
               {savingPassword ? 'Enregistrement...' : 'Confirmer'}
@@ -100,8 +99,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans">
-      <Toaster position="top-right" theme="dark" />
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      <Toaster position="top-right" />
       {!session ? (
         <Auth />
       ) : profile && !profile.is_active ? (
@@ -110,8 +109,8 @@ export default function App() {
             <Loader2 className="w-8 h-8 text-amber-500" />
           </div>
           <h2 className="text-2xl font-bold">Compte en attente de validation</h2>
-          <p className="text-zinc-400 max-w-sm">Votre compte a été créé. Un administrateur doit l'activer avant que vous puissiez accéder à l'application.</p>
-          <button onClick={() => supabase.auth.signOut()} className="text-sm text-zinc-500 hover:text-white mt-2">Se déconnecter</button>
+          <p className="text-muted-foreground max-w-sm">Votre compte a été créé. Un administrateur doit l'activer avant que vous puissiez accéder à l'application.</p>
+          <button onClick={() => supabase.auth.signOut()} className="text-sm text-muted-foreground hover:text-foreground mt-2">Se déconnecter</button>
         </div>
       ) : (
         <Dashboard profile={profile} session={session} />

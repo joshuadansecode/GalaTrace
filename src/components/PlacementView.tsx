@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { Armchair, Plus, X, Trash2 } from 'lucide-react';
 import ContextMenu from './ContextMenu';
+import { formatTicketType } from '../lib/utils';
 
 // Mapping ticket_type → category
 const TICKET_CATEGORY: Record<string, string> = {
@@ -280,7 +281,7 @@ export default function PlacementView({ profile }: { profile: Profile }) {
                     <p className="font-medium text-sm">{s.buyer_name}</p>
                     {s.notes && <p className="text-xs text-zinc-500 mt-0.5">{s.notes}</p>}
                   </div>
-                  <span className="text-xs text-zinc-500 uppercase">{s.ticket_type_id.replace('_', ' ')}</span>
+                  <span className="text-xs text-zinc-500">{formatTicketType(s.ticket_type_id)}</span>
                 </div>
               ))}
             </CardContent>

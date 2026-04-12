@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Search, X, CreditCard, StickyNote, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ContextMenu from './ContextMenu';
+import { formatTicketType } from '../lib/utils';
 
 export default function PublicView({ profile }: { profile: Profile | null }) {
   const [sales, setSales] = useState<any[]>([]);
@@ -205,7 +206,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                       </div>
                     </TableCell>
                     <TableCell className="text-zinc-500 text-xs">{guest.ticket_number || '—'}</TableCell>
-                    <TableCell className="text-zinc-400 text-xs uppercase">{guest.ticket_type_id.replace('_', ' ')}</TableCell>
+                    <TableCell className="text-zinc-400 text-xs">{formatTicketType(guest.ticket_type_id)}</TableCell>
                     <TableCell className="text-zinc-400 text-xs">
                       {guest.filiere ? <span className="font-medium text-white">{guest.filiere}</span> : '—'}
                       {guest.annee ? <span className="text-zinc-500"> A{guest.annee}</span> : ''}

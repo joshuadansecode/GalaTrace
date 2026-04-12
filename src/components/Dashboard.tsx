@@ -13,7 +13,9 @@ import {
   Armchair,
   Eye,
   Trophy,
-  Activity
+  Activity,
+  Sun,
+  Moon
 } from 'lucide-react';
 import AdminView from './AdminView';
 import SellerView from './SellerView';
@@ -38,6 +40,15 @@ export default function Dashboard({ profile, session }: DashboardProps) {
   const [pendingCount, setPendingCount] = useState(0);
   const [overviewStats, setOverviewStats] = useState({ totalTickets: 0, totalRevenue: 0, seatsOccupied: 0, seatsTotal: 0 });
   const [showProfile, setShowProfile] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('galatrace-theme');
+    return saved ? saved === 'dark' : true;
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('galatrace-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -113,7 +124,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
     return (
       <div className="h-screen flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-2xl font-bold mb-2">Profil non trouvé</h2>
-        <p className="text-zinc-400 mb-6">Votre profil n'a pas encore été configuré par un administrateur.</p>
+        <p className="text-muted-foreground mb-6">Votre profil n'a pas encore été configuré par un administrateur.</p>
         <Button onClick={handleSignOut} variant="outline">Se déconnecter</Button>
       </div>
     );
@@ -153,29 +164,29 @@ export default function Dashboard({ profile, session }: DashboardProps) {
           <div className="space-y-6">
             <header>
               <h1 className="text-3xl font-bold tracking-tight">Bienvenue, {profile.full_name || profile.email}</h1>
-              <p className="text-zinc-400">Rôle : <span className="capitalize text-amber-500 font-medium">{ROLE_LABELS[profile.role]}</span></p>
+              <p className="text-muted-foreground">Rôle : <span className="capitalize text-amber-500 font-medium">{ROLE_LABELS[profile.role]}</span></p>
             </header>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Tickets Vendus</h3>
+              <div className="p-6 bg-card border border-border rounded-xl">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Tickets Vendus</h3>
                 <p className="text-2xl font-bold">{overviewStats.totalTickets}</p>
               </div>
-              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Chiffre d'Affaires</h3>
+              <div className="p-6 bg-card border border-border rounded-xl">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Chiffre d'Affaires</h3>
                 <p className="text-2xl font-bold text-amber-500">{overviewStats.totalRevenue.toLocaleString()} F</p>
               </div>
-              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Caisse Encaissée</h3>
+              <div className="p-6 bg-card border border-border rounded-xl">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Caisse Encaissée</h3>
                 <p className="text-2xl font-bold text-green-500">{stats.totalCaisse.toLocaleString()} F</p>
               </div>
-              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Taux de Placement</h3>
+              <div className="p-6 bg-card border border-border rounded-xl">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Taux de Placement</h3>
                 <p className="text-2xl font-bold">
                   {overviewStats.seatsTotal > 0 ? `${overviewStats.seatsOccupied}/${overviewStats.seatsTotal}` : '—'}
                 </p>
                 {overviewStats.seatsTotal > 0 && (
-                  <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-amber-500 rounded-full" style={{ width: `${(overviewStats.seatsOccupied / overviewStats.seatsTotal) * 100}%` }} />
                   </div>
                 )}
@@ -184,7 +195,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
 
             {/* Podium Vendeurs */}
             {leaderboard.length > 0 && (
-              <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-xl">
+              <div className="p-6 bg-card border border-border rounded-xl">
                 <div className="flex items-center gap-2 mb-6">
                   <Trophy className="w-5 h-5 text-amber-500" />
                   <h3 className="text-base font-bold">Podium des Vendeurs</h3>
@@ -193,9 +204,9 @@ export default function Dashboard({ profile, session }: DashboardProps) {
                   {leaderboard[1] && (
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-3xl">🥈</span>
-                      <div className="bg-zinc-700 rounded-t-lg w-24 h-20 flex flex-col items-center justify-center px-2">
+                      <div className="bg-muted rounded-t-lg w-24 h-20 flex flex-col items-center justify-center px-2">
                         <p className="text-xs font-bold text-center truncate w-full text-center">{leaderboard[1].name}</p>
-                        <p className="text-xs text-zinc-400">{leaderboard[1].total.toLocaleString()} F</p>
+                        <p className="text-xs text-muted-foreground">{leaderboard[1].total.toLocaleString()} F</p>
                       </div>
                     </div>
                   )}
@@ -211,9 +222,9 @@ export default function Dashboard({ profile, session }: DashboardProps) {
                   {leaderboard[2] && (
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-3xl">🥉</span>
-                      <div className="bg-zinc-800 rounded-t-lg w-24 h-14 flex flex-col items-center justify-center px-2">
+                      <div className="bg-muted rounded-t-lg w-24 h-14 flex flex-col items-center justify-center px-2">
                         <p className="text-xs font-bold text-center truncate w-full text-center">{leaderboard[2].name}</p>
-                        <p className="text-xs text-zinc-400">{leaderboard[2].total.toLocaleString()} F</p>
+                        <p className="text-xs text-muted-foreground">{leaderboard[2].total.toLocaleString()} F</p>
                       </div>
                     </div>
                   )}
@@ -226,18 +237,23 @@ export default function Dashboard({ profile, session }: DashboardProps) {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* Mobile Sidebar Toggle */}
       <button 
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-zinc-900 border border-zinc-800 rounded-md"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-card border border-border rounded-md"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
       >
         {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
+      {/* Sidebar overlay on mobile */}
+      {isSidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-30 bg-black/60" onClick={() => setIsSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40 w-64 bg-zinc-950 border-r border-zinc-800 transition-transform duration-300 ease-in-out
+        fixed lg:static inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full p-6">
@@ -260,7 +276,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
                   w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all
                   ${activeTab === item.id 
                     ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'}
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'}
                 `}
               >
                 <item.icon className="w-5 h-5" />
@@ -274,12 +290,12 @@ export default function Dashboard({ profile, session }: DashboardProps) {
             ))}
           </nav>
 
-          <div className="pt-6 border-t border-zinc-800">
+          <div className="pt-6 border-t border-border">
             <button
               onClick={() => setShowProfile(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-lg hover:bg-zinc-800 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-lg hover:bg-muted transition-colors text-left"
             >
-              <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden flex items-center justify-center text-xs font-bold shrink-0">
+              <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex items-center justify-center text-xs font-bold shrink-0">
                 {profile.avatar_url
                   ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                   : profile.email[0].toUpperCase()
@@ -287,7 +303,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{profile.full_name || 'Utilisateur'}</p>
-                <p className="text-xs text-zinc-500 truncate">{ROLE_LABELS[profile.role]}</p>
+                <p className="text-xs text-muted-foreground truncate">{ROLE_LABELS[profile.role]}</p>
               </div>
               {profile.pending_changes && Object.keys(profile.pending_changes).length > 0 && (
                 <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Modifications en attente" />
@@ -305,14 +321,36 @@ export default function Dashboard({ profile, session }: DashboardProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-[#0a0a0a]">
-        <div className="flex justify-end items-center px-6 lg:px-10 pt-4">
+      <main className="flex-1 overflow-y-auto bg-background">
+        <div className="flex justify-end items-center gap-2 px-6 lg:px-10 pt-4 pt-16 lg:pt-4">
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title={darkMode ? 'Mode clair' : 'Mode sombre'}
+          >
+            {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <NotificationBell userId={profile.id} />
         </div>
-        <div className="max-w-6xl mx-auto px-6 lg:px-10 pb-10">
+        <div className="max-w-6xl mx-auto px-4 lg:px-10 pb-24 lg:pb-10">
           {renderContent()}
         </div>
       </main>
+
+      {/* Barre navigation mobile en bas */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border flex items-center justify-around px-2 py-2">
+        {filteredMenu.slice(0, 5).map((item) => (
+          <button key={item.id} onClick={() => setActiveTab(item.id)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors relative
+              ${activeTab === item.id ? 'text-amber-500' : 'text-zinc-500'}`}>
+            <item.icon className="w-5 h-5" />
+            <span className="text-[9px] font-medium">{item.label.split(' ')[0]}</span>
+            {item.id === 'admin' && pendingCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">{pendingCount}</span>
+            )}
+          </button>
+        ))}
+      </nav>
 
       {showProfile && (
         <ProfileModal
