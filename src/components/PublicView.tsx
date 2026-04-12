@@ -167,18 +167,18 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       </div>
 
       <Card className="bg-card border-border">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
-                <TableHead className="text-muted-foreground">N°</TableHead>
+                <TableHead className="text-muted-foreground cursor-pointer min-w-[140px]" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
+                <TableHead className="text-muted-foreground hidden sm:table-cell">N°</TableHead>
                 <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
-                <TableHead className="text-muted-foreground">Filière</TableHead>
-                <TableHead className="text-muted-foreground">Vendeur</TableHead>
-                <TableHead className="text-muted-foreground">Payé</TableHead>
+                <TableHead className="text-muted-foreground hidden md:table-cell">Filière</TableHead>
+                <TableHead className="text-muted-foreground hidden lg:table-cell">Vendeur</TableHead>
+                <TableHead className="text-muted-foreground hidden sm:table-cell">Payé</TableHead>
                 <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></TableHead>
-                <TableHead className="text-muted-foreground">Table/Place</TableHead>
+                <TableHead className="text-muted-foreground hidden md:table-cell">Table/Place</TableHead>
                 <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Statut <SortIcon k="remaining_balance" /></TableHead>
               </TableRow>
             </TableHeader>
@@ -196,27 +196,27 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                     className="border-border hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => openGuest(guest)}
                   >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {guest.buyer_name}
+                    <TableCell className="font-medium max-w-[160px]">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="truncate">{guest.buyer_name}</span>
                         {guest.buyer_phone && (
                           <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                            className="text-green-500 hover:text-green-400" title={guest.buyer_phone} onClick={e => e.stopPropagation()}>📱</a>
+                            className="text-green-500 hover:text-green-400 shrink-0" title={guest.buyer_phone} onClick={e => e.stopPropagation()}>📱</a>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{guest.ticket_number || '—'}</TableCell>
-                    <TableCell className="text-foreground text-xs font-medium">{formatTicketType(guest.ticket_type_id)}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground text-xs hidden sm:table-cell">{guest.ticket_number || '—'}</TableCell>
+                    <TableCell className="text-foreground text-xs font-medium whitespace-nowrap">{formatTicketType(guest.ticket_type_id)}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs hidden md:table-cell">
                       {guest.filiere ? <span className="font-medium text-foreground">{guest.filiere}</span> : '—'}
                       {guest.annee ? <span className="text-muted-foreground"> A{guest.annee}</span> : ''}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
-                    <TableCell className="text-green-500 font-bold text-sm">{guest.total_paid?.toLocaleString()} F</TableCell>
-                    <TableCell className={`font-bold text-sm ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
-                    <TableCell className="text-amber-500 text-xs">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm hidden lg:table-cell max-w-[120px] truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
+                    <TableCell className="text-green-500 font-bold text-sm hidden sm:table-cell whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</TableCell>
+                    <TableCell className={`font-bold text-sm whitespace-nowrap ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
+                    <TableCell className="text-amber-500 text-xs hidden md:table-cell whitespace-nowrap">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap
                         ${guest.remaining_balance === 0 ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>
                         {guest.remaining_balance === 0 ? 'Soldé' : 'Partiel'}
                       </span>
