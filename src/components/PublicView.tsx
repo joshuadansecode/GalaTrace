@@ -167,9 +167,9 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       </div>
 
       <Card className="bg-card border-border">
-        <CardContent className="p-0 overflow-x-auto">
+        <CardContent className="p-0">
           <Table className="min-w-[700px]">
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground cursor-pointer min-w-[140px]" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
                 <TableHead className="text-muted-foreground hidden sm:table-cell">N°</TableHead>
