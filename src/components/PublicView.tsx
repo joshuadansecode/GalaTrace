@@ -18,7 +18,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   const [selectedGuest, setSelectedGuest] = useState<any | null>(null);
   const [guestPayments, setGuestPayments] = useState<any[]>([]);
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 30;
 
   // Edit state (admin)
   const [editingGuest, setEditingGuest] = useState<any | null>(null);
@@ -196,9 +196,9 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                     className="border-border hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => openGuest(guest)}
                   >
-                    <TableCell className="font-medium max-w-[160px]">
-                      <div className="flex items-center gap-1 min-w-0">
-                        <span className="truncate">{guest.buyer_name}</span>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-1">
+                        <span className="whitespace-nowrap">{guest.buyer_name}</span>
                         {guest.buyer_phone && (
                           <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
                             className="text-green-500 hover:text-green-400 shrink-0" title={guest.buyer_phone} onClick={e => e.stopPropagation()}>📱</a>
@@ -211,7 +211,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                       {guest.filiere ? <span className="font-medium text-foreground">{guest.filiere}</span> : '—'}
                       {guest.annee ? <span className="text-muted-foreground"> A{guest.annee}</span> : ''}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm hidden lg:table-cell max-w-[120px] truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm hidden lg:table-cell whitespace-nowrap">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
                     <TableCell className="text-green-500 font-bold text-sm hidden sm:table-cell whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</TableCell>
                     <TableCell className={`font-bold text-sm whitespace-nowrap ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
                     <TableCell className="text-amber-500 text-xs hidden md:table-cell whitespace-nowrap">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</TableCell>
