@@ -126,17 +126,17 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
     <div className="space-y-8">
       <header className="text-center max-w-2xl mx-auto">
         <h2 className="text-3xl font-bold tracking-tight mb-2">Liste des Invités & Placement</h2>
-        <p className="text-zinc-400">Consultez la liste officielle des participants et trouvez votre place.</p>
+        <p className="text-muted-foreground">Consultez la liste officielle des participants et trouvez votre place.</p>
       </header>
 
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-          <Input placeholder="Rechercher un nom..." className="pl-10 bg-zinc-900 border-zinc-800"
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Rechercher un nom..." className="pl-10"
             value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }} />
         </div>
         <select value={filterTicket} onChange={(e) => { setFilterTicket(e.target.value); setPage(0); }}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white">
+          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
           <option value="">Tous les tickets</option>
           <option value="gold_interne">Gold Interne</option>
           <option value="platinum_interne">Platinum Interne</option>
@@ -146,13 +146,13 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           <option value="royal">Royal</option>
         </select>
         <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white">
+          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
           <option value="">Tous les statuts</option>
           <option value="solde">Soldé</option>
           <option value="partiel">Partiel</option>
         </select>
         <select value={filterSeller} onChange={(e) => { setFilterSeller(e.target.value); setPage(0); }}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white">
+          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
           <option value="">Tous les vendeurs</option>
           {sellers.map((s: any) => <option key={s.email} value={s.email}>{s.full_name || s.email}</option>)}
         </select>
@@ -161,25 +161,25 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           placeholder="Filière (ex: HTR)"
           value={filterFiliere}
           onChange={(e) => { setFilterFiliere(e.target.value); setPage(0); }}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-500 uppercase w-32"
+          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground uppercase w-32"
         />
-        <span className="text-xs text-zinc-500 self-center">{filteredGuests.length} résultat(s)</span>
+        <span className="text-xs text-muted-foreground self-center">{filteredGuests.length} résultat(s)</span>
       </div>
 
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
-                <TableHead className="text-zinc-400">N°</TableHead>
-                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
-                <TableHead className="text-zinc-400">Filière</TableHead>
-                <TableHead className="text-zinc-400">Vendeur</TableHead>
-                <TableHead className="text-zinc-400">Payé</TableHead>
-                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></TableHead>
-                <TableHead className="text-zinc-400">Table/Place</TableHead>
-                <TableHead className="text-zinc-400 cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Statut <SortIcon k="remaining_balance" /></TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
+                <TableHead className="text-muted-foreground">N°</TableHead>
+                <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
+                <TableHead className="text-muted-foreground">Filière</TableHead>
+                <TableHead className="text-muted-foreground">Vendeur</TableHead>
+                <TableHead className="text-muted-foreground">Payé</TableHead>
+                <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></TableHead>
+                <TableHead className="text-muted-foreground">Table/Place</TableHead>
+                <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Statut <SortIcon k="remaining_balance" /></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -193,7 +193,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 return (
                   <ContextMenu key={guest.id} items={contextItems}>
                   <TableRow
-                    className="border-zinc-800 hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                    className="border-border hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() => openGuest(guest)}
                   >
                     <TableCell className="font-medium">
@@ -205,15 +205,15 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-zinc-500 text-xs">{guest.ticket_number || '—'}</TableCell>
-                    <TableCell className="text-zinc-400 text-xs">{formatTicketType(guest.ticket_type_id)}</TableCell>
-                    <TableCell className="text-zinc-400 text-xs">
-                      {guest.filiere ? <span className="font-medium text-white">{guest.filiere}</span> : '—'}
-                      {guest.annee ? <span className="text-zinc-500"> A{guest.annee}</span> : ''}
+                    <TableCell className="text-muted-foreground text-xs">{guest.ticket_number || '—'}</TableCell>
+                    <TableCell className="text-foreground text-xs font-medium">{formatTicketType(guest.ticket_type_id)}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {guest.filiere ? <span className="font-medium text-foreground">{guest.filiere}</span> : '—'}
+                      {guest.annee ? <span className="text-muted-foreground"> A{guest.annee}</span> : ''}
                     </TableCell>
-                    <TableCell className="text-zinc-400 text-sm">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
                     <TableCell className="text-green-500 font-bold text-sm">{guest.total_paid?.toLocaleString()} F</TableCell>
-                    <TableCell className={`font-bold text-sm ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-zinc-600'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
+                    <TableCell className={`font-bold text-sm ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</TableCell>
                     <TableCell className="text-amber-500 text-xs">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
@@ -227,16 +227,16 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
               })}
               {filteredGuests.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-10 text-zinc-500">Aucun invité trouvé.</TableCell>
+                  <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">Aucun invité trouvé.</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
           {filteredGuests.length > PAGE_SIZE && (
-            <div className="flex justify-between items-center p-4 text-sm text-zinc-400 border-t border-zinc-800">
-              <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded bg-zinc-800 disabled:opacity-30 hover:bg-zinc-700">← Précédent</button>
+            <div className="flex justify-between items-center p-4 text-sm text-muted-foreground border-t border-border">
+              <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded bg-muted disabled:opacity-30 hover:bg-muted/80">← Précédent</button>
               <span>{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredGuests.length)} sur {filteredGuests.length}</span>
-              <button disabled={(page + 1) * PAGE_SIZE >= filteredGuests.length} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded bg-zinc-800 disabled:opacity-30 hover:bg-zinc-700">Suivant →</button>
+              <button disabled={(page + 1) * PAGE_SIZE >= filteredGuests.length} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded bg-muted disabled:opacity-30 hover:bg-muted/80">Suivant →</button>
             </div>
           )}
         </CardContent>
@@ -245,18 +245,18 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       {/* Modal édition invité (admin) */}
       {editingGuest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl">
-            <div className="flex justify-between items-center p-5 border-b border-zinc-800">
+          <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl">
+            <div className="flex justify-between items-center p-5 border-b border-border">
               <p className="font-bold">Modifier l'acheteur</p>
-              <button onClick={() => setEditingGuest(null)} className="text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setEditingGuest(null)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleEdit} className="p-5 space-y-3">
-              <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom" className="bg-zinc-800 border-zinc-700" />
-              <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="WhatsApp" className="bg-zinc-800 border-zinc-700" />
-              <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="N° Ticket" className="bg-zinc-800 border-zinc-700" />
+              <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom" />
+              <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="WhatsApp" />
+              <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="N° Ticket" />
               <div className="grid grid-cols-2 gap-2">
-                <Input value={editFiliere} onChange={e => setEditFiliere(e.target.value.toUpperCase())} placeholder="Filière" className="bg-zinc-800 border-zinc-700" />
-                <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                <Input value={editFiliere} onChange={e => setEditFiliere(e.target.value.toUpperCase())} placeholder="Filière" />
+                <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
                   <option value="">Année</option>
                   <option value="1">1ère</option>
                   <option value="2">2ème</option>
@@ -264,9 +264,9 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                   <option value="Externe">Externe</option>
                 </select>
               </div>
-              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes" className="bg-zinc-800 border-zinc-700" />
+              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes" />
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setEditingGuest(null)} className="flex-1 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 text-sm">Annuler</button>
+                <button type="button" onClick={() => setEditingGuest(null)} className="flex-1 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted text-sm">Annuler</button>
                 <button type="submit" className="flex-1 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium">Enregistrer</button>
               </div>
             </form>
@@ -277,84 +277,81 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       {/* Modal détail invité */}
       {selectedGuest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <Card className="w-full max-w-md bg-zinc-950 border-zinc-800 shadow-2xl">
-            <CardHeader className="border-b border-zinc-800 pb-4">
+          <Card className="w-full max-w-md bg-card border-border shadow-2xl">
+            <CardHeader className="border-b border-border pb-4">
               <CardTitle className="flex justify-between items-center">
                 {selectedGuest.buyer_name}
-                <button onClick={() => setSelectedGuest(null)} className="text-zinc-500 hover:text-white">
+                <button onClick={() => setSelectedGuest(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-5 space-y-5">
-              {/* Infos vente */}
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">Ticket</p>
-                  <p className="font-bold uppercase">{selectedGuest.ticket_type_id.replace('_', ' ')}</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Ticket</p>
+                  <p className="font-bold">{formatTicketType(selectedGuest.ticket_type_id)}</p>
                 </div>
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">N° Ticket</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">N° Ticket</p>
                   <p className="font-bold">{selectedGuest.ticket_number || '—'}</p>
                 </div>
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">Filière / Année</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Filière / Année</p>
                   <p className="font-bold">{selectedGuest.filiere || '—'} {selectedGuest.annee ? `— ${selectedGuest.annee}ère/ème année` : ''}</p>
                 </div>
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">Prix final</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Prix final</p>
                   <p className="font-bold">{selectedGuest.final_price?.toLocaleString()} F</p>
                 </div>
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">Vendeur</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Vendeur</p>
                   <p className="font-bold">{selectedGuest.seller?.full_name || selectedGuest.seller?.email || '—'}</p>
                 </div>
                 {selectedGuest.buyer_phone && (
-                  <div className="bg-zinc-900 rounded-lg p-3 col-span-2">
-                    <p className="text-zinc-500 text-xs mb-1">WhatsApp</p>
+                  <div className="bg-muted rounded-lg p-3 col-span-2">
+                    <p className="text-muted-foreground text-xs mb-1">WhatsApp</p>
                     <a href={`https://wa.me/${selectedGuest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
                       className="font-bold text-green-500 hover:underline flex items-center gap-1">
                       📱 {selectedGuest.buyer_phone}
                     </a>
                   </div>
                 )}
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">Total payé</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Total payé</p>
                   <p className="font-bold text-green-500">{selectedGuest.total_paid?.toLocaleString()} F</p>
                 </div>
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-500 text-xs mb-1">Reste dû</p>
+                <div className="bg-muted rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs mb-1">Reste dû</p>
                   <p className={`font-bold ${selectedGuest.remaining_balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
                     {selectedGuest.remaining_balance?.toLocaleString()} F
                   </p>
                 </div>
               </div>
 
-              {/* Notes */}
               {selectedGuest.notes && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex gap-2">
+                <div className="bg-muted border border-border rounded-lg p-3 flex gap-2">
                   <StickyNote className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                  <p className="text-sm text-zinc-300">{selectedGuest.notes}</p>
+                  <p className="text-sm">{selectedGuest.notes}</p>
                 </div>
               )}
 
-              {/* Historique paiements */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <CreditCard className="w-4 h-4 text-amber-500" />
                   <p className="text-sm font-bold">Historique des paiements</p>
                 </div>
                 {guestPayments.length === 0 ? (
-                  <p className="text-zinc-500 text-xs">Aucun paiement enregistré.</p>
+                  <p className="text-muted-foreground text-xs">Aucun paiement enregistré.</p>
                 ) : (
                   <div className="space-y-2">
                     {guestPayments.map((p: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center text-sm bg-zinc-900 rounded-lg px-3 py-2">
+                      <div key={i} className="flex justify-between items-center text-sm bg-muted rounded-lg px-3 py-2">
                         <div>
-                          <p className="font-medium text-green-400">+{p.amount?.toLocaleString()} F</p>
-                          <p className="text-xs text-zinc-500">{p.collector?.full_name || p.collector?.email || '—'}</p>
+                          <p className="font-medium text-green-500">+{p.amount?.toLocaleString()} F</p>
+                          <p className="text-xs text-muted-foreground">{p.collector?.full_name || p.collector?.email || '—'}</p>
                         </div>
-                        <p className="text-xs text-zinc-600">{new Date(p.created_at).toLocaleDateString('fr-FR')}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString('fr-FR')}</p>
                       </div>
                     ))}
                   </div>
