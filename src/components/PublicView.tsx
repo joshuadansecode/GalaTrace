@@ -32,7 +32,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   const isAdmin = profile?.role === 'admin';
 
   // Tri et filtres
-  const [sortKey, setSortKey] = useState<'buyer_name' | 'ticket_type_id' | 'remaining_balance' | 'created_at'>('buyer_name');
+  const [sortKey, setSortKey] = useState<'buyer_name' | 'ticket_type_id' | 'remaining_balance' | 'created_at' | 'ticket_number' | 'filiere'>('buyer_name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [filterTicket, setFilterTicket] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -106,7 +106,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   }
 
   const SortIcon = ({ k }: { k: typeof sortKey }) => (
-    <span className="ml-1 text-zinc-500">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
+    <span className="ml-1 text-muted-foreground">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
   );
 
   const filteredGuests = sales
@@ -118,6 +118,9 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
     .sort((a, b) => {
       const va = a[sortKey] ?? '';
       const vb = b[sortKey] ?? '';
+      if (sortKey === 'remaining_balance') {
+        return sortDir === 'asc' ? Number(va) - Number(vb) : Number(vb) - Number(va);
+      }
       return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
     });
   const paginatedGuests = filteredGuests.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -172,9 +175,9 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground cursor-pointer min-w-[140px]" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
-                <TableHead className="text-muted-foreground hidden sm:table-cell">N°</TableHead>
+                <TableHead className="text-muted-foreground hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N° <SortIcon k="ticket_number" /></TableHead>
                 <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
-                <TableHead className="text-muted-foreground hidden md:table-cell">Filière</TableHead>
+                <TableHead className="text-muted-foreground hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></TableHead>
                 <TableHead className="text-muted-foreground hidden lg:table-cell">Vendeur</TableHead>
                 <TableHead className="text-muted-foreground hidden sm:table-cell">Payé</TableHead>
                 <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></TableHead>
