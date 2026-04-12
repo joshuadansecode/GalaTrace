@@ -174,7 +174,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           <Table className="min-w-[700px]">
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground cursor-pointer min-w-[140px]" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
+                <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></TableHead>
                 <TableHead className="text-muted-foreground hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N° <SortIcon k="ticket_number" /></TableHead>
                 <TableHead className="text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></TableHead>
                 <TableHead className="text-muted-foreground hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></TableHead>
