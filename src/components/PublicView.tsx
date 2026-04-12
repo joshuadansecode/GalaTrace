@@ -179,10 +179,10 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 <th className="text-left text-muted-foreground font-medium px-2 py-2.5 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></th>
                 <th className="text-left text-muted-foreground font-medium px-2 py-2.5 w-[7%] cursor-pointer hidden md:table-cell" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
                 <th className="text-left text-muted-foreground font-medium px-2 py-2.5 w-[12%] hidden lg:table-cell">Vendeur</th>
-                <th className="text-right text-muted-foreground font-medium px-2 py-2.5 w-[9%] hidden sm:table-cell">Payé</th>
-                <th className="text-right text-muted-foreground font-medium px-2 py-2.5 w-[9%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
-                <th className="text-left text-muted-foreground font-medium px-2 py-2.5 w-[9%] hidden md:table-cell">Table</th>
-                <th className="text-center text-muted-foreground font-medium px-2 py-2.5 w-[8%]">Statut</th>
+                <th className="text-right text-muted-foreground font-medium px-2 py-2.5 w-[10%] hidden sm:table-cell">Payé</th>
+                <th className="text-right text-muted-foreground font-medium px-2 py-2.5 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
+                <th className="text-left text-muted-foreground font-medium px-2 py-2.5 w-[8%] hidden md:table-cell">Table</th>
+                <th className="text-center text-muted-foreground font-medium px-2 py-2.5 w-[9%]">Statut</th>
               </tr>
             </thead>
             <tbody>
@@ -216,8 +216,8 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                         : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-2 py-2.5 text-muted-foreground text-xs hidden lg:table-cell overflow-hidden truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</td>
-                    <td className="px-2 py-2.5 text-green-500 font-bold text-xs hidden sm:table-cell text-right tabular-nums">{guest.total_paid?.toLocaleString()} F</td>
-                    <td className={`px-2 py-2.5 font-bold text-xs text-right tabular-nums ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
+                    <td className="px-2 py-2.5 text-green-500 font-bold text-xs hidden sm:table-cell text-right whitespace-nowrap tabular-nums">{guest.total_paid?.toLocaleString()} F</td>
+                    <td className={`px-2 py-2.5 font-bold text-xs text-right whitespace-nowrap tabular-nums ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
                     <td className="px-2 py-2.5 text-amber-500 text-xs hidden md:table-cell truncate">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</td>
                     <td className="px-2 py-2.5 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap
