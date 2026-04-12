@@ -171,7 +171,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       <Card className="bg-card border-border">
         <CardContent className="p-0">
           <div className="w-full overflow-x-auto">
-          <table className="w-full table-fixed text-sm border-collapse">
+          <table className="w-full table-fixed text-sm border-separate border-spacing-0">
             <thead className="sticky top-0 bg-card z-10 border-b-2 border-border">
               <tr>
                 <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[22%] cursor-pointer border-r border-border" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></th>
