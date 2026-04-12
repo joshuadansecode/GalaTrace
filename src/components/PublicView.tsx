@@ -208,8 +208,9 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                     <TableCell className="text-muted-foreground text-xs hidden sm:table-cell">{guest.ticket_number || '—'}</TableCell>
                     <TableCell className="text-foreground text-xs font-medium whitespace-nowrap">{formatTicketType(guest.ticket_type_id)}</TableCell>
                     <TableCell className="text-muted-foreground text-xs hidden md:table-cell">
-                      {guest.filiere ? <span className="font-medium text-foreground">{guest.filiere}</span> : '—'}
-                      {guest.annee ? <span className="text-muted-foreground"> A{guest.annee}</span> : ''}
+                      {guest.filiere || guest.annee
+                        ? <span className="font-medium text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
+                        : '—'}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm hidden lg:table-cell whitespace-nowrap">{guest.seller?.full_name || guest.seller?.email || '—'}</TableCell>
                     <TableCell className="text-green-500 font-bold text-sm hidden sm:table-cell whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</TableCell>
@@ -298,7 +299,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 </div>
                 <div className="bg-muted rounded-lg p-3">
                   <p className="text-muted-foreground text-xs mb-1">Filière / Année</p>
-                  <p className="font-bold">{selectedGuest.filiere || '—'} {selectedGuest.annee ? `— ${selectedGuest.annee}ère/ème année` : ''}</p>
+                  <p className="font-bold">{(selectedGuest.filiere || '') + (selectedGuest.annee || '') || '—'}</p>
                 </div>
                 <div className="bg-muted rounded-lg p-3">
                   <p className="text-muted-foreground text-xs mb-1">Prix final</p>
