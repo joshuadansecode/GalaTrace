@@ -171,21 +171,21 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       <Card className="bg-card border-border">
         <CardContent className="p-0">
           <div className="w-full overflow-x-auto">
-          <table className="w-full table-fixed text-sm border-separate border-spacing-0">
-            <thead className="sticky top-0 bg-card z-10 border-b-2 border-border">
-              <tr className="divide-x divide-border">
-                <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></th>
-                <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[7%] cursor-pointer hidden sm:table-cell" onClick={() => toggleSort('ticket_number')}>N° <SortIcon k="ticket_number" /></th>
-                <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></th>
-                <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[7%] cursor-pointer hidden md:table-cell" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
-                <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[12%] hidden lg:table-cell">Vendeur</th>
-                <th className="text-right text-muted-foreground font-medium px-3 py-2.5 w-[10%] hidden sm:table-cell">Payé</th>
-                <th className="text-right text-muted-foreground font-medium px-3 py-2.5 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
-                <th className="text-left text-muted-foreground font-medium px-3 py-2.5 w-[9%] hidden md:table-cell">Table</th>
-                <th className="text-center text-muted-foreground font-medium px-3 py-2.5 w-[9%]">Statut</th>
+          <table className="w-full table-fixed text-sm">
+            <thead className="sticky top-0 bg-card z-10">
+              <tr className="border-b-2 border-border">
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[7%] cursor-pointer hidden sm:table-cell" onClick={() => toggleSort('ticket_number')}>N°</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[7%] cursor-pointer hidden md:table-cell" onClick={() => toggleSort('filiere')}>Filière</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[12%] hidden lg:table-cell">Vendeur</th>
+                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 w-[10%] hidden sm:table-cell">Payé</th>
+                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
+                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[9%] hidden md:table-cell">Table</th>
+                <th className="text-center text-xs font-semibold text-muted-foreground px-4 py-3 w-[9%]">Statut</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {paginatedGuests.map((guest) => {
                 const seat = seats.find(s => s.sale_id === guest.id);
                 const table = seat ? tables.find(t => t.id === seat.table_id) : null;
@@ -196,11 +196,11 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 return (
                   <ContextMenu key={guest.id} items={contextItems}>
                   <tr
-                    className="border-b border-border divide-x divide-border hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="hover:bg-muted/40 transition-colors cursor-pointer"
                     onClick={() => openGuest(guest)}
                   >
-                    <td className="px-3 py-2.5 font-medium overflow-hidden">
-                      <div className="flex items-center gap-1">
+                    <td className="px-4 py-3 font-medium text-sm overflow-hidden">
+                      <div className="flex items-center gap-2">
                         <span className="truncate">{guest.buyer_name}</span>
                         {guest.buyer_phone && (
                           <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
@@ -208,22 +208,22 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground text-xs hidden sm:table-cell">{guest.ticket_number || '—'}</td>
-                    <td className="px-3 py-2.5 text-xs font-medium overflow-hidden truncate">{formatTicketType(guest.ticket_type_id)}</td>
-                    <td className="px-3 py-2.5 text-xs hidden md:table-cell">
+                    <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">{guest.ticket_number || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-foreground truncate">{formatTicketType(guest.ticket_type_id)}</td>
+                    <td className="px-4 py-3 text-xs hidden md:table-cell">
                       {guest.filiere || guest.annee
-                        ? <span className="font-medium text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
+                        ? <span className="text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground text-xs hidden lg:table-cell overflow-hidden truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</td>
-                    <td className="px-3 py-2.5 text-green-500 font-bold text-xs hidden sm:table-cell text-right whitespace-nowrap tabular-nums">{guest.total_paid?.toLocaleString()} F</td>
-                    <td className={`px-3 py-2.5 font-bold text-xs text-right whitespace-nowrap tabular-nums ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
-                    <td className="px-3 py-2.5 text-amber-500 text-xs hidden md:table-cell truncate">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '---'}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase whitespace-nowrap
-                        ${guest.remaining_balance === 0 ? 'bg-green-500/10 text-green-500' : 'bg-amber-500/10 text-amber-500'}`}>
-                        {guest.remaining_balance === 0 ? 'Soldé' : 'Partiel'}
-                      </span>
+                    <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</td>
+                    <td className="px-4 py-3 text-xs text-green-500 hidden sm:table-cell text-right tabular-nums whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</td>
+                    <td className={`px-4 py-3 text-xs text-right tabular-nums whitespace-nowrap font-medium ${guest.remaining_balance > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell truncate">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '—'}</td>
+                    <td className="px-4 py-3 text-center">
+                      {guest.remaining_balance === 0
+                        ? <span className="text-[10px] font-medium text-green-500">✓ Soldé</span>
+                        : <span className="text-[10px] font-medium text-muted-foreground">Partiel</span>
+                      }
                     </td>
                   </tr>
                   </ContextMenu>
