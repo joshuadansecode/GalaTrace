@@ -205,11 +205,11 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 return (
                   <ContextMenu key={guest.id} items={contextItems}>
                   <tr
-                    className="hover:bg-muted/40 transition-colors cursor-pointer"
+                    className="hover:bg-muted/40 transition-colors cursor-pointer h-12"
                     onClick={() => openGuest(guest)}
                   >
-                    <td className="px-4 py-3 font-medium text-sm overflow-hidden">
-                      <div className="flex items-center gap-2">
+                    <td className="px-4 py-0 font-medium text-sm overflow-hidden max-w-0">
+                      <div className="flex items-center gap-2 h-12">
                         <span className="truncate">{guest.buyer_name}</span>
                         {guest.buyer_phone && (
                           <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
@@ -217,18 +217,18 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">{guest.ticket_number || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-foreground truncate">{formatTicketType(guest.ticket_type_id)}</td>
-                    <td className="px-4 py-3 text-xs hidden md:table-cell">
+                    <td className="px-4 py-0 text-xs text-muted-foreground hidden sm:table-cell overflow-hidden">{guest.ticket_number || '—'}</td>
+                    <td className="px-4 py-0 text-xs text-foreground overflow-hidden max-w-0"><span className="truncate block">{formatTicketType(guest.ticket_type_id)}</span></td>
+                    <td className="px-4 py-0 text-xs hidden md:table-cell overflow-hidden">
                       {guest.filiere || guest.annee
-                        ? <span className="text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
+                        ? <span className="text-foreground truncate block">{(guest.filiere || '') + (guest.annee || '')}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell truncate">{guest.seller?.full_name || guest.seller?.email || '—'}</td>
-                    <td className="px-4 py-3 text-xs text-green-500 hidden sm:table-cell text-right tabular-nums whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</td>
-                    <td className={`px-4 py-3 text-xs text-right tabular-nums whitespace-nowrap font-medium ${guest.remaining_balance > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell truncate">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '—'}</td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-0 text-xs text-muted-foreground hidden lg:table-cell overflow-hidden max-w-0"><span className="truncate block">{guest.seller?.full_name || guest.seller?.email || '—'}</span></td>
+                    <td className="px-4 py-0 text-xs text-green-500 hidden sm:table-cell text-right tabular-nums whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</td>
+                    <td className={`px-4 py-0 text-xs text-right tabular-nums whitespace-nowrap font-medium ${guest.remaining_balance > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
+                    <td className="px-4 py-0 text-xs text-muted-foreground hidden md:table-cell overflow-hidden max-w-0"><span className="truncate block">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '—'}</span></td>
+                    <td className="px-4 py-0 text-center">
                       {guest.remaining_balance === 0
                         ? <span className="text-[10px] font-medium text-green-500">✓ Soldé</span>
                         : <span className="text-[10px] font-medium text-muted-foreground">Partiel</span>
