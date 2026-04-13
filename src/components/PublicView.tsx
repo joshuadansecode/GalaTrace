@@ -173,16 +173,25 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           <div className="w-full overflow-x-auto">
           <table className="w-full table-fixed text-sm">
             <thead className="sticky top-0 bg-card z-10">
+              {/* Ligne de groupes */}
+              <tr className="border-b border-border/50">
+                <th colSpan={2} className="text-left text-[10px] font-semibold text-amber-500 uppercase tracking-wider px-4 py-1.5 w-[29%]">Invité</th>
+                <th colSpan={2} className="text-left text-[10px] font-semibold text-blue-400 uppercase tracking-wider px-4 py-1.5 w-[21%] hidden md:table-cell">Billet</th>
+                <th colSpan={1} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-1.5 w-[12%] hidden lg:table-cell">Vendeur</th>
+                <th colSpan={2} className="text-right text-[10px] font-semibold text-green-500 uppercase tracking-wider px-4 py-1.5 w-[20%] hidden sm:table-cell">Paiement</th>
+                <th colSpan={2} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-1.5 w-[18%]">Placement</th>
+              </tr>
+              {/* Ligne de colonnes */}
               <tr className="border-b-2 border-border">
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Invité <SortIcon k="buyer_name" /></th>
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[7%] cursor-pointer hidden sm:table-cell" onClick={() => toggleSort('ticket_number')}>N°</th>
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Ticket <SortIcon k="ticket_type_id" /></th>
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[7%] cursor-pointer hidden md:table-cell" onClick={() => toggleSort('filiere')}>Filière</th>
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[12%] hidden lg:table-cell">Vendeur</th>
-                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 w-[10%] hidden sm:table-cell">Payé</th>
-                <th className="text-right text-xs font-semibold text-muted-foreground px-4 py-3 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
-                <th className="text-left text-xs font-semibold text-muted-foreground px-4 py-3 w-[9%] hidden md:table-cell">Table</th>
-                <th className="text-center text-xs font-semibold text-muted-foreground px-4 py-3 w-[9%]">Statut</th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N°</th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Type <SortIcon k="ticket_type_id" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière</th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[12%] hidden lg:table-cell">Vendeur</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] hidden sm:table-cell">Payé</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[9%] hidden md:table-cell">Table</th>
+                <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2 w-[9%]">Statut</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
