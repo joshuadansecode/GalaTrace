@@ -590,7 +590,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
                     {users
-                      .filter(u => ['vendeur', 'comite', 'admin'].includes(u.role))
+                      .filter(u => ['vendeur', 'comite', 'admin', 'tresoriere', 'tresoriere_generale'].includes(u.role))
                       .map(u => (
                         <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
                       ))

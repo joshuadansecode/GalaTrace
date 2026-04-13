@@ -132,7 +132,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
 
   const menuItems = [
     { id: 'overview', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
-    { id: 'sales', label: 'Ventes & Tickets', icon: Ticket, roles: ['admin', 'vendeur', 'comite', 'tresoriere'] },
+    { id: 'sales', label: 'Ventes & Tickets', icon: Ticket, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale'] },
     { id: 'treasury', label: 'Trésorerie', icon: Wallet, roles: ['admin', 'tresoriere', 'tresoriere_generale', 'direction'] },
     { id: 'admin', label: 'Administration', icon: Users, roles: ['admin'] },
     { id: 'placement', label: 'Placement', icon: Armchair, roles: ['admin', 'direction'] },
