@@ -116,7 +116,7 @@ export default function ProfileModal({ profile, onClose, onUpdated }: Props) {
           <div className="space-y-2">
             <label className="text-xs font-medium text-zinc-400 uppercase">WhatsApp</label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)}
-              className="bg-zinc-800 border-zinc-700" placeholder="+225 07 00 00 00 00" />
+              className="bg-zinc-800 border-zinc-700" placeholder="+229, +44, +225..." />
           </div>
 
           <div className="space-y-1">

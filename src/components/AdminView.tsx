@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { toast } from 'sonner';
 import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2, FileText, Pencil, Camera, Loader2 } from 'lucide-react';
 import { notify } from '../lib/notify';
-import { formatForDisplay, toE164, isValidBeninNumber } from '../lib/phone';
+import { formatForDisplay, toE164, isValidPhoneNumber } from '../lib/phone';
 import ContextMenu from './ContextMenu';
 import FinancialSummaryCards from './FinancialSummaryCards';
 import jsPDF from 'jspdf';
@@ -158,8 +158,8 @@ export default function AdminView({ profile }: { profile: Profile }) {
   async function handleUpdateUser(e: React.FormEvent) {
     e.preventDefault();
     if (!editingUser) return;
-    if (editPhone && !isValidBeninNumber(editPhone)) {
-      toast.error('Numéro WhatsApp invalide – format Bénin attendu (8 ou 10 chiffres)');
+    if (editPhone && !isValidPhoneNumber(editPhone)) {
+      toast.error('Numéro WhatsApp invalide – format international attendu');
       return;
     }
     setEditSaving(true);

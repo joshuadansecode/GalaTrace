@@ -340,7 +340,11 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(status === 'validee' ? 'Dépense validée' : 'Dépense rejetée');
+      toast.success(
+        status === 'validee'
+          ? (profile.role === 'admin' ? 'Dépense validée par admin unique' : 'Dépense validée')
+          : 'Dépense rejetée'
+      );
       // Notifier la TG
       const exp = expenses.find(e => e.id === expenseId);
       if (exp) await notify(exp.created_by, status === 'validee' ? 'Dépense validée' : 'Dépense rejetée', `"${exp.title}" a été ${status === 'validee' ? 'validée' : 'rejetée'} par la Comptable`, status === 'validee' ? 'success' : 'warning');
@@ -983,6 +987,22 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                             <div className="flex justify-end gap-2">
                               <Button size="sm" variant="outline" className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10" onClick={() => handleValidateExpense(exp.id, 'validee')}>Valider</Button>
                               <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={() => handleValidateExpense(exp.id, 'rejetee')}>Rejeter</Button>
+                            </div>
+                          )}
+
+                          {profile.role === 'admin' && exp.validation_status === 'en_attente' && (
+                            <div className="flex flex-col items-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 border-amber-500/60 text-amber-400 hover:bg-amber-500/10"
+                                onClick={() => handleValidateExpense(exp.id, 'validee')}
+                              >
+                                Validation admin unique
+                              </Button>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                Équivaut aux deux validations
+                              </span>
                             </div>
                           )}
 

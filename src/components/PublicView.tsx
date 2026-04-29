@@ -7,7 +7,7 @@ import { Search, X, CreditCard, StickyNote, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner';
 import ContextMenu from './ContextMenu';
 import { formatTicketType } from '../lib/utils';
-import { formatForDisplay, toE164, isValidBeninNumber } from '../lib/phone';
+import { formatForDisplay, toE164, isValidPhoneNumber } from '../lib/phone';
 
 export default function PublicView({ profile }: { profile: Profile | null }) {
   const [sales, setSales] = useState<any[]>([]);
@@ -97,8 +97,8 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editingGuest) return;
-    if (editPhone && !isValidBeninNumber(editPhone)) {
-      toast.error('Numéro WhatsApp invalide – format Bénin attendu (8 ou 10 chiffres)');
+    if (editPhone && !isValidPhoneNumber(editPhone)) {
+      toast.error('Numéro WhatsApp invalide – format international attendu');
       return;
     }
     const { error } = await supabase.from('sales').update({
