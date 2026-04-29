@@ -7,6 +7,7 @@ import { Search, X, CreditCard, StickyNote, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner';
 import ContextMenu from './ContextMenu';
 import { formatTicketType } from '../lib/utils';
+import { formatForDisplay, toE164, isValidBeninNumber } from '../lib/phone';
 
 export default function PublicView({ profile }: { profile: Profile | null }) {
   const [sales, setSales] = useState<any[]>([]);
@@ -96,6 +97,10 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editingGuest) return;
+    if (editPhone && !isValidBeninNumber(editPhone)) {
+      toast.error('Numéro WhatsApp invalide – format Bénin attendu (8 ou 10 chiffres)');
+      return;
+    }
     const { error } = await supabase.from('sales').update({
       buyer_name: editName,
       buyer_phone: editPhone || null,
@@ -193,18 +198,18 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 <th colSpan={2} className="text-right text-[10px] font-semibold text-green-500 uppercase tracking-wider px-4 py-1.5 w-[20%] hidden sm:table-cell">Paiement</th>
                 <th colSpan={2} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-1.5 w-[18%]">Placement</th>
               </tr>
-               {/* Ligne de colonnes */}
-               <tr className="border-b-2 border-border">
-                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
-                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N° Ticket <SortIcon k="ticket_number" /></th>
-                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Type billet <SortIcon k="ticket_type_id" /></th>
-                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière</th>
-                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[12%] hidden lg:table-cell">Vendeur</th>
-                 <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] hidden sm:table-cell">Payé (F)</th>
-                 <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste (F) <SortIcon k="remaining_balance" /></th>
-                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[9%] hidden md:table-cell">Table</th>
-                 <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2 w-[9%]">Statut</th>
-               </tr>
+              {/* Ligne de colonnes */}
+              <tr className="border-b-2 border-border">
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N° Ticket <SortIcon k="ticket_number" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Type billet <SortIcon k="ticket_type_id" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière</th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[12%] hidden lg:table-cell">Vendeur</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] hidden sm:table-cell">Payé (F)</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste (F) <SortIcon k="remaining_balance" /></th>
+                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[9%] hidden md:table-cell">Table</th>
+                <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2 w-[9%]">Statut</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {paginatedGuests.map((guest) => {
@@ -223,10 +228,14 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                     <td className="px-4 py-0 font-medium text-sm">
                       <div className="flex items-center gap-2 h-12">
                         <span className="truncate">{guest.buyer_name}</span>
-                        {guest.buyer_phone && (
-                          <a href={`https://wa.me/${guest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                            className="text-green-500 hover:text-green-400 shrink-0" title={guest.buyer_phone} onClick={e => e.stopPropagation()}>📱</a>
-                        )}
+                        {guest.buyer_phone && isValidBeninNumber(guest.buyer_phone) ? (
+                          <a href={`https://wa.me/${toE164(guest.buyer_phone)}`} target="_blank" rel="noreferrer"
+                            className="text-green-500 hover:text-green-400 shrink-0"
+                            title={formatForDisplay(guest.buyer_phone)}
+                            onClick={e => e.stopPropagation()}>📱</a>
+                        ) : guest.buyer_phone ? (
+                          <span className="text-red-400 text-xs shrink-0" title="Numéro invalide">📱</span>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-4 py-0 text-xs text-muted-foreground hidden sm:table-cell">{guest.ticket_number || '—'}</td>
@@ -297,7 +306,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Année</label>
-                  <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                  <select value={editAnnee} onChange={(e) => setEditAnnee(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
                     <option value="">Année</option>
                     <option value="1">1ère</option>
                     <option value="2">2ème</option>
@@ -307,7 +316,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Type de ticket</label>
-                  <select value={editTicketTypeId} onChange={e => setEditTicketTypeId(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                  <select value={editTicketTypeId} onChange={(e) => setEditTicketTypeId(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
                     <option value="">Type de ticket</option>
                     <option value="gold_interne">Gold Interne</option>
                     <option value="platinum_interne">Platinum Interne</option>
@@ -319,30 +328,30 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Vendeur</label>
-                  <select value={editSellerId} onChange={e => setEditSellerId(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                  <select value={editSellerId} onChange={(e) => setEditSellerId(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
                     <option value="">Vendeur</option>
                     {sellers.map((s: any) => <option key={s.id} value={s.id}>{s.full_name || s.email}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Prix de base (F)</label>
-                  <Input type="number" min="0" value={editBasePrice} onChange={e => setEditBasePrice(e.target.value)} placeholder="15000" />
+                  <Input type="number" min="0" value={editBasePrice} onChange={(e) => setEditBasePrice(e.target.value)} placeholder="15000" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Remise (F)</label>
-                  <Input type="number" min="0" value={editDiscountAmount} onChange={e => setEditDiscountAmount(e.target.value)} placeholder="0" />
+                  <Input type="number" min="0" value={editDiscountAmount} onChange={(e) => setEditDiscountAmount(e.target.value)} placeholder="0" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Prix final (F)</label>
-                  <Input type="number" min="0" value={editFinalPrice} onChange={e => setEditFinalPrice(e.target.value)} placeholder="15000" />
+                  <Input type="number" min="0" value={editFinalPrice} onChange={(e) => setEditFinalPrice(e.target.value)} placeholder="15000" />
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Source de la remise</label>
-                  <Input value={editDiscountSource} onChange={e => setEditDiscountSource(e.target.value)} placeholder="Ex: BDE, Promotion" />
+                  <Input value={editDiscountSource} onChange={(e) => setEditDiscountSource(e.target.value)} placeholder="Ex: BDE, Promotion" />
                 </div>
                 <div className="sm:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
-                  <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Informations complémentaires" />
+                  <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Informations complémentaires" />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
@@ -391,10 +400,14 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 {selectedGuest.buyer_phone && (
                   <div className="bg-muted rounded-lg p-3 col-span-2">
                     <p className="text-muted-foreground text-xs mb-1">WhatsApp</p>
-                    <a href={`https://wa.me/${selectedGuest.buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                      className="font-bold text-green-500 hover:underline flex items-center gap-1">
-                      📱 {selectedGuest.buyer_phone}
-                    </a>
+                    {isValidBeninNumber(selectedGuest.buyer_phone) ? (
+                      <a href={`https://wa.me/${toE164(selectedGuest.buyer_phone)}`} target="_blank" rel="noreferrer"
+                        className="font-bold text-green-500 hover:underline flex items-center gap-1">
+                        📱 {formatForDisplay(selectedGuest.buyer_phone)}
+                      </a>
+                    ) : (
+                      <span className="font-bold text-red-500">Numéro invalide</span>
+                    )}
                   </div>
                 )}
                 <div className="bg-muted rounded-lg p-3">
@@ -425,13 +438,13 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                   <p className="text-muted-foreground text-xs">Aucun paiement enregistré.</p>
                 ) : (
                   <div className="space-y-2">
-                    {guestPayments.map((p: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center text-sm bg-muted rounded-lg px-3 py-2">
+                    {guestPayments.map((payment: any) => (
+                      <div key={payment.id} className="flex justify-between items-center text-sm bg-muted rounded-lg px-3 py-2 border border-border">
                         <div>
-                          <p className="font-medium text-green-500">+{p.amount?.toLocaleString()} F</p>
-                          <p className="text-xs text-muted-foreground">{p.collector?.full_name || p.collector?.email || '—'}</p>
+                          <p className="font-bold text-green-500">+{payment.amount.toLocaleString()} F</p>
+                          <p className="text-xs text-muted-foreground">par {payment.collector?.full_name || payment.collector?.email || '?'}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString('fr-FR')}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(payment.created_at).toLocaleDateString('fr-FR')}</p>
                       </div>
                     ))}
                   </div>

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { toast } from 'sonner';
 import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2, FileText, Pencil, Camera, Loader2 } from 'lucide-react';
 import { notify } from '../lib/notify';
+import { formatForDisplay, toE164, isValidBeninNumber } from '../lib/phone';
 import ContextMenu from './ContextMenu';
 import FinancialSummaryCards from './FinancialSummaryCards';
 import jsPDF from 'jspdf';
@@ -157,7 +158,10 @@ export default function AdminView({ profile }: { profile: Profile }) {
   async function handleUpdateUser(e: React.FormEvent) {
     e.preventDefault();
     if (!editingUser) return;
-
+    if (editPhone && !isValidBeninNumber(editPhone)) {
+      toast.error('Numéro WhatsApp invalide – format Bénin attendu (8 ou 10 chiffres)');
+      return;
+    }
     setEditSaving(true);
     try {
       let avatarUrl = editingUser.avatar_url;
@@ -480,12 +484,14 @@ export default function AdminView({ profile }: { profile: Profile }) {
               </div>
                     </TableCell>
                     <TableCell className="text-zinc-400 text-xs">{u.email}</TableCell>
-                    <TableCell>
-                      {u.phone ? (
-                        <a href={`https://wa.me/${u.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+                    <TableCell className="text-zinc-400 text-xs">
+                      {u.phone && isValidBeninNumber(u.phone) ? (
+                        <a href={`https://wa.me/${toE164(u.phone)}`} target="_blank" rel="noreferrer"
                           className="text-green-500 text-xs hover:underline flex items-center gap-1">
-                          📱 {u.phone}
+                          📱 {formatForDisplay(u.phone)}
                         </a>
+                      ) : u.phone ? (
+                        <span className="text-red-400 text-xs">Numéro invalide</span>
                       ) : <span className="text-zinc-600 text-xs">—</span>}
                     </TableCell>
                     <TableCell>
