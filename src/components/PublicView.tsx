@@ -24,8 +24,14 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editTicketNumber, setEditTicketNumber] = useState('');
+  const [editTicketTypeId, setEditTicketTypeId] = useState('');
+  const [editSellerId, setEditSellerId] = useState('');
   const [editFiliere, setEditFiliere] = useState('');
   const [editAnnee, setEditAnnee] = useState('');
+  const [editBasePrice, setEditBasePrice] = useState('');
+  const [editDiscountAmount, setEditDiscountAmount] = useState('');
+  const [editFinalPrice, setEditFinalPrice] = useState('');
+  const [editDiscountSource, setEditDiscountSource] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
   const isAdmin = profile?.role === 'admin';
@@ -51,7 +57,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   async function fetchData() {
     setLoading(true);
     const [salesRes, seatsRes, tablesRes] = await Promise.all([
-      supabase.from('sales').select('*, seller:profiles!seller_id(full_name, email), payments(amount, created_at, collector:profiles!collector_id(full_name, email))').order('buyer_name'),
+      supabase.from('sales').select('*, seller:profiles!seller_id(id, full_name, email), payments(amount, created_at, collector:profiles!collector_id(full_name, email))').order('buyer_name'),
       supabase.from('seats').select('*'),
       supabase.from('tables').select('*')
     ]);
@@ -94,8 +100,14 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       buyer_name: editName,
       buyer_phone: editPhone || null,
       ticket_number: editTicketNumber || null,
+      ticket_type_id: editTicketTypeId || null,
+      seller_id: editSellerId || null,
       filiere: editFiliere || null,
       annee: editAnnee || null,
+      base_price: editBasePrice === '' ? null : Number(editBasePrice),
+      discount_amount: editDiscountAmount === '' ? null : Number(editDiscountAmount),
+      final_price: editFinalPrice === '' ? null : Number(editFinalPrice),
+      discount_source: editDiscountSource || null,
       notes: editNotes || null,
     }).eq('id', editingGuest.id);
     if (error) { toast.error('Erreur'); return; }
@@ -199,7 +211,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 const seat = seats.find(s => s.sale_id === guest.id);
                 const table = seat ? tables.find(t => t.id === seat.table_id) : null;
                 const contextItems = isAdmin ? [
-                  { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingGuest(guest); setEditName(guest.buyer_name); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditNotes(guest.notes || ''); } },
+                  { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingGuest(guest); setEditName(guest.buyer_name || ''); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditTicketTypeId(guest.ticket_type_id || ''); setEditSellerId(guest.seller_id || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditBasePrice(String(guest.base_price ?? '')); setEditDiscountAmount(String(guest.discount_amount ?? '')); setEditFinalPrice(String(guest.final_price ?? '')); setEditDiscountSource(guest.discount_source || ''); setEditNotes(guest.notes || ''); } },
                   { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDelete(guest.id) }
                 ] : [];
                 return (
@@ -261,14 +273,15 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-border">
-              <p className="font-bold">Modifier l'acheteur</p>
+              <p className="font-bold">Edition admin complète</p>
               <button onClick={() => setEditingGuest(null)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleEdit} className="p-5 space-y-3">
-              <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom" />
-              <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="WhatsApp" />
-              <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="N° Ticket" />
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-xs text-muted-foreground">Admin: tous les champs de vente et d'invité sont modifiables.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom de l'acheteur" />
+                <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="WhatsApp" />
+                <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="N° Ticket" />
                 <Input value={editFiliere} onChange={e => setEditFiliere(e.target.value.toUpperCase())} placeholder="Filière" />
                 <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
                   <option value="">Année</option>
@@ -277,6 +290,23 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                   <option value="3">3ème</option>
                   <option value="Externe">Externe</option>
                 </select>
+                <select value={editTicketTypeId} onChange={e => setEditTicketTypeId(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                  <option value="">Type de ticket</option>
+                  <option value="gold_interne">Gold Interne</option>
+                  <option value="platinum_interne">Platinum Interne</option>
+                  <option value="diamond_interne">Diamond Interne</option>
+                  <option value="gold_externe">Gold Externe</option>
+                  <option value="diamond_externe">Diamond Externe</option>
+                  <option value="royal">Royal</option>
+                </select>
+                <select value={editSellerId} onChange={e => setEditSellerId(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground sm:col-span-2">
+                  <option value="">Vendeur</option>
+                  {sellers.map((s: any) => <option key={s.id} value={s.id}>{s.full_name || s.email}</option>)}
+                </select>
+                <Input type="number" min="0" value={editBasePrice} onChange={e => setEditBasePrice(e.target.value)} placeholder="Prix de base" />
+                <Input type="number" min="0" value={editDiscountAmount} onChange={e => setEditDiscountAmount(e.target.value)} placeholder="Remise" />
+                <Input type="number" min="0" value={editFinalPrice} onChange={e => setEditFinalPrice(e.target.value)} placeholder="Prix final" />
+                <Input value={editDiscountSource} onChange={e => setEditDiscountSource(e.target.value)} placeholder="Source remise" />
               </div>
               <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes" />
               <div className="flex gap-3 pt-2">

@@ -15,11 +15,24 @@ export interface Expense {
   title: string;
   author: string;
   amount: number;
+  submission_token: string;
   payment_status: 'reglee' | 'non_reglee';
+  payment_status_pending: 'reglee' | 'non_reglee' | null;
+  payment_status_requested_by: string | null;
+  payment_status_requested_at: string | null;
+  payment_status_confirmed_by: string | null;
+  payment_status_confirmed_at: string | null;
   validation_status: 'en_attente' | 'validee' | 'rejetee';
   created_by: string;
   validated_by: string | null;
   validated_at: string | null;
+  deletion_status: 'en_attente_counterpart' | 'en_attente_admin' | null;
+  deletion_requested_by: string | null;
+  deletion_requested_at: string | null;
+  deletion_counterpart_approved_by: string | null;
+  deletion_counterpart_approved_at: string | null;
+  deletion_admin_approved_by: string | null;
+  deletion_admin_approved_at: string | null;
   created_at: string;
 }
 

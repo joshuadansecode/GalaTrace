@@ -113,9 +113,11 @@ CREATE POLICY "Finance roles can view expenses" ON expenses
     get_my_role() IN ('admin', 'tresoriere', 'tresoriere_generale', 'direction')
   );
 
-CREATE POLICY "Tresoriere can delete own pending expenses" ON expenses
+CREATE POLICY "Admin and creator can delete pending expenses" ON expenses
   FOR DELETE USING (
-    created_by = auth.uid() AND validation_status = 'en_attente'
+    validation_status = 'en_attente' AND (
+      created_by = auth.uid() OR get_my_role() = 'admin'
+    )
   );
 
 CREATE POLICY "Comptable can validate expenses" ON expenses

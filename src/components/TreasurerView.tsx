@@ -7,9 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
-import { Wallet, ArrowUpRight, CheckCircle2, XCircle, Clock, Plus, BarChart3, TrendingUp, Receipt, Trash2 } from 'lucide-react';
+import { Wallet, ArrowUpRight, CheckCircle2, XCircle, Clock, Plus, BarChart3, TrendingUp, Receipt, Trash2, Pencil, Loader2 } from 'lucide-react';
 import ContextMenu from './ContextMenu';
 import SellerCashPanel from './SellerCashPanel';
+import FinancialSummaryCards from './FinancialSummaryCards';
 import { notify, notifyRole } from '../lib/notify';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 
@@ -43,6 +44,54 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
   const [tgTransfers, setTgTransfers] = useState<any[]>([]);
   const [tgAmount, setTgAmount] = useState(0);
   const [comptable, setComptable] = useState<any | null>(null);
+  const canManageExpensePayment = ['tresoriere', 'tresoriere_generale'].includes(profile.role);
+  const [isCreatingExpense, setIsCreatingExpense] = useState(false);
+  const [expenseSubmissionToken, setExpenseSubmissionToken] = useState(() => crypto.randomUUID());
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editExpenseTitle, setEditExpenseTitle] = useState('');
+  const [editExpenseAuthor, setEditExpenseAuthor] = useState('');
+  const [editExpenseAmount, setEditExpenseAmount] = useState(0);
+  const [editExpensePaymentStatus, setEditExpensePaymentStatus] = useState<'reglee' | 'non_reglee'>('non_reglee');
+  const [editExpenseSaving, setEditExpenseSaving] = useState(false);
+
+  const paymentStatusLabel = (status: 'reglee' | 'non_reglee') => status === 'reglee' ? 'Réglée' : 'Non réglée';
+  const expenseEditWindowMs = 60 * 1000;
+
+  const normalizeExpenseSignature = (title: string, author: string, amount: number, status: 'reglee' | 'non_reglee') =>
+    [title.trim().toLowerCase(), author.trim().toLowerCase(), amount, status].join('|');
+
+  const getExpenseAgeMs = (expense: Expense) => Date.now() - new Date(expense.created_at).getTime();
+
+  const canEditExpense = (expense: Expense) => {
+    const isCreator = expense.created_by === profile.id;
+    const isRecent = getExpenseAgeMs(expense) <= expenseEditWindowMs;
+    return expense.validation_status === 'en_attente' && isCreator && isRecent && ['tresoriere', 'admin'].includes(profile.role);
+  };
+
+  const canDeleteExpense = (expense: Expense) => {
+    const isCreator = expense.created_by === profile.id;
+    const isRecent = getExpenseAgeMs(expense) <= expenseEditWindowMs;
+    return expense.validation_status === 'en_attente' && isCreator && isRecent && ['tresoriere', 'admin'].includes(profile.role);
+  };
+
+  function openExpenseEditor(expense: Expense) {
+    setEditingExpense(expense);
+    setEditExpenseTitle(expense.title);
+    setEditExpenseAuthor(expense.author);
+    setEditExpenseAmount(expense.amount);
+    setEditExpensePaymentStatus(expense.payment_status);
+  }
+
+  function closeExpenseEditor() {
+    setEditingExpense(null);
+    setEditExpenseSaving(false);
+  }
+
+  const getExpenseCounterpartRole = () => {
+    if (profile.role === 'tresoriere') return 'tresoriere_generale';
+    if (profile.role === 'tresoriere_generale') return 'tresoriere';
+    return null;
+  };
 
   useEffect(() => {
     fetchData();
@@ -202,34 +251,95 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
 
   async function handleCreateExpense(e: React.FormEvent) {
     e.preventDefault();
-    if (!expenseTitle || !expenseAuthor || expenseAmount <= 0) return;
+    if (isCreatingExpense || !expenseTitle.trim() || !expenseAuthor.trim() || expenseAmount <= 0) return;
+
+    const duplicateSignature = normalizeExpenseSignature(expenseTitle, expenseAuthor, expenseAmount, expensePaymentStatus);
+    const duplicateExpense = expenses.find((expense: Expense) =>
+      expense.created_by === profile.id &&
+      normalizeExpenseSignature(expense.title, expense.author, expense.amount, expense.payment_status) === duplicateSignature &&
+      getExpenseAgeMs(expense) < 2 * 60 * 1000
+    );
+
+    if (duplicateExpense) {
+      toast.error('Cette dépense vient déjà d\'être enregistrée.');
+      return;
+    }
+
+    setIsCreatingExpense(true);
     try {
-      const { error } = await supabase.from('expenses').insert([{
-        title: expenseTitle,
-        author: expenseAuthor,
-        amount: expenseAmount,
-        payment_status: expensePaymentStatus,
-        created_by: profile.id
-      }]);
+      const { data, error } = await supabase.rpc('create_expense_submission', {
+        p_title: expenseTitle.trim(),
+        p_author: expenseAuthor.trim(),
+        p_amount: expenseAmount,
+        p_payment_status: expensePaymentStatus,
+        p_submission_token: expenseSubmissionToken,
+      });
+
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.duplicate) {
+        toast.info('Cette dépense vient déjà d’être enregistrée.');
+        setExpenseTitle('');
+        setExpenseAuthor('');
+        setExpenseAmount(0);
+        setExpensePaymentStatus('non_reglee');
+        setExpenseSubmissionToken(crypto.randomUUID());
+        fetchData();
+        return;
+      }
+
       toast.success('Dépense enregistrée');
       // Notifier la Comptable
       await notifyRole('tresoriere_generale', 'Nouvelle dépense à valider', `"${expenseTitle}" — ${expenseAmount.toLocaleString()} F`, 'warning');
       setExpenseTitle(''); setExpenseAuthor(''); setExpenseAmount(0); setExpensePaymentStatus('non_reglee');
+      setExpenseSubmissionToken(crypto.randomUUID());
       fetchData();
     } catch (error: any) {
       toast.error('Erreur lors de l\'enregistrement');
+    } finally {
+      setIsCreatingExpense(false);
+    }
+  }
+
+  async function handleUpdateExpense(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingExpense) return;
+    if (!canEditExpense(editingExpense)) {
+      toast.error('La fenêtre de modification a expiré.');
+      return;
+    }
+
+    setEditExpenseSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('update_recent_expense', {
+        p_expense_id: editingExpense.id,
+        p_title: editExpenseTitle.trim(),
+        p_author: editExpenseAuthor.trim(),
+        p_amount: editExpenseAmount,
+        p_payment_status: editExpensePaymentStatus,
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success('Dépense mise à jour');
+      closeExpenseEditor();
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la mise à jour');
+    } finally {
+      setEditExpenseSaving(false);
     }
   }
 
   async function handleValidateExpense(expenseId: string, status: 'validee' | 'rejetee') {
     try {
-      const { error } = await supabase.from('expenses').update({
-        validation_status: status,
-        validated_by: profile.id,
-        validated_at: new Date().toISOString()
-      }).eq('id', expenseId);
+      const { data, error } = await supabase.rpc('validate_expense', {
+        p_expense_id: expenseId,
+        p_status: status,
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success(status === 'validee' ? 'Dépense validée' : 'Dépense rejetée');
       // Notifier la TG
       const exp = expenses.find(e => e.id === expenseId);
@@ -240,12 +350,195 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
     }
   }
 
-  async function handleDeleteExpense(expenseId: string) {
-    if (!confirm('Supprimer cette dépense ?')) return;
-    const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
-    if (error) { toast.error('Erreur lors de la suppression'); return; }
-    toast.success('Dépense supprimée');
-    fetchData();
+  async function handleDeleteExpense(expense: Expense) {
+    try {
+      const isCreator = expense.created_by === profile.id;
+      const isRecent = getExpenseAgeMs(expense) <= expenseEditWindowMs;
+
+      if (expense.validation_status === 'en_attente') {
+        if (!isCreator && profile.role !== 'admin') {
+          toast.error('Suppression réservée au créateur ou à un administrateur.');
+          return;
+        }
+
+        if (!isRecent && profile.role !== 'admin') {
+          toast.info('Fenêtre de suppression expirée. Une validation admin sera requise ensuite.');
+          return;
+        }
+
+        const confirmed = confirm('Supprimer cette dépense ?');
+        if (!confirmed) return;
+
+        const { error } = await supabase.from('expenses').delete().eq('id', expense.id);
+        if (error) throw error;
+        toast.success('Dépense supprimée');
+        fetchData();
+        return;
+      }
+
+      if (expense.validation_status === 'validee' && expense.deletion_status === null) {
+        if (!['tresoriere', 'tresoriere_generale', 'admin'].includes(profile.role)) {
+          toast.error('Suppression réservée aux rôles financiers.');
+          return;
+        }
+
+        const { data, error } = await supabase.rpc('request_expense_deletion', {
+          p_expense_id: expense.id,
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast.success('Demande de suppression envoyée pour double validation');
+        fetchData();
+        return;
+      }
+
+      if (expense.deletion_status === 'en_attente_counterpart') {
+        if (expense.deletion_requested_by === profile.id) {
+          toast.info('La suppression attend la validation de l’autre rôle.');
+          return;
+        }
+
+        if (!['tresoriere', 'tresoriere_generale'].includes(profile.role)) {
+          toast.error('Validation réservée à la contrepartie financière.');
+          return;
+        }
+
+        const { data, error } = await supabase.rpc('approve_expense_deletion_counterpart', {
+          p_expense_id: expense.id,
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast.success('Suppression validée par la contrepartie, en attente de l’admin');
+        fetchData();
+        return;
+      }
+
+      if (expense.deletion_status === 'en_attente_admin') {
+        if (profile.role !== 'admin') {
+          toast.error('Validation finale réservée à l’admin.');
+          return;
+        }
+
+        const confirmed = confirm('Valider la suppression de cette dépense ?');
+        if (!confirmed) return;
+
+        const { data, error } = await supabase.rpc('approve_expense_deletion_admin', {
+          p_expense_id: expense.id,
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast.success('Dépense supprimée après validation admin');
+        fetchData();
+        return;
+      }
+
+      toast.info('Aucune suppression disponible pour cette dépense.');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la suppression');
+    }
+  }
+
+  async function handleRequestExpensePaymentChange(expense: Expense, targetStatus: 'reglee' | 'non_reglee') {
+    if (!canManageExpensePayment) return;
+    if (expense.payment_status === targetStatus) {
+      toast.info(`La dépense est déjà ${paymentStatusLabel(targetStatus).toLowerCase()}.`);
+      return;
+    }
+    if (expense.payment_status_pending) {
+      toast.info('Une demande de changement est déjà en attente.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('request_expense_payment_change', {
+        p_expense_id: expense.id,
+        p_target_status: targetStatus,
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const counterpartRole = getExpenseCounterpartRole();
+      if (counterpartRole) {
+        await notifyRole(
+          counterpartRole,
+          'Validation de règlement attendue',
+          `La dépense "${expense.title}" doit passer à ${paymentStatusLabel(targetStatus).toLowerCase()} et attend votre confirmation.`,
+          'warning'
+        );
+      }
+
+      toast.success('Demande de changement envoyée');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la demande');
+    }
+  }
+
+  async function handleConfirmExpensePaymentChange(expense: Expense) {
+    if (!expense.payment_status_pending) return;
+    if (expense.payment_status_requested_by === profile.id) {
+      toast.info('Vous devez attendre la confirmation de l’autre rôle.');
+      return;
+    }
+
+    try {
+      const nextStatus = expense.payment_status_pending;
+      const { data, error } = await supabase.rpc('confirm_expense_payment_change', {
+        p_expense_id: expense.id,
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (expense.payment_status_requested_by) {
+        await notify(
+          expense.payment_status_requested_by,
+          'Changement de règlement confirmé',
+          `La dépense "${expense.title}" a été confirmée comme ${paymentStatusLabel(nextStatus).toLowerCase()}.`,
+          'success'
+        );
+      }
+
+      toast.success(`Dépense marquée ${paymentStatusLabel(nextStatus).toLowerCase()}`);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la confirmation');
+    }
+  }
+
+  async function handleRejectExpensePaymentChange(expense: Expense) {
+    if (!expense.payment_status_pending) return;
+    if (expense.payment_status_requested_by === profile.id) {
+      toast.info('Vous devez attendre la confirmation de l’autre rôle.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('reject_expense_payment_change', {
+        p_expense_id: expense.id,
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (expense.payment_status_requested_by) {
+        await notify(
+          expense.payment_status_requested_by,
+          'Changement de règlement rejeté',
+          `La demande de la dépense "${expense.title}" a été rejetée.`,
+          'warning'
+        );
+      }
+
+      toast.success('Demande rejetée');
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors du rejet');
+    }
   }
 
   // Chart Data Computation
@@ -280,6 +573,8 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
         <h2 className="text-2xl font-bold tracking-tight">Gestion de la Trésorerie</h2>
         <p className="text-zinc-400">Suivez les flux financiers et validez les dépôts.</p>
       </header>
+
+      <FinancialSummaryCards />
 
       {/* Panneau Ma Caisse (si le rôle vend aussi) */}
       <Card className="bg-zinc-900 border-zinc-800">
@@ -649,17 +944,18 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                   <TableHead className="text-zinc-400">Montant</TableHead>
                   <TableHead className="text-zinc-400">Paiement</TableHead>
                   <TableHead className="text-zinc-400">Statut</TableHead>
-                  {profile.role === 'tresoriere_generale' && <TableHead className="text-zinc-400 text-right">Action</TableHead>}
+                  {canManageExpensePayment || profile.role === 'tresoriere_generale' ? <TableHead className="text-zinc-400 text-right">Action</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {expenses.length === 0 ? (
                   <TableRow className="border-zinc-800">
-                    <TableCell colSpan={6} className="text-center text-zinc-500 py-6">Aucune dépense enregistrée.</TableCell>
+                    <TableCell colSpan={canManageExpensePayment || profile.role === 'tresoriere_generale' ? 6 : 5} className="text-center text-zinc-500 py-6">Aucune dépense enregistrée.</TableCell>
                   </TableRow>
                 ) : expenses.map((exp) => (
                   <ContextMenu key={exp.id} items={[
-                    ...(exp.validation_status === 'en_attente' ? [{ label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteExpense(exp.id) }] : [])
+                    ...(canEditExpense(exp) ? [{ label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => openExpenseEditor(exp) }] : []),
+                    ...(canDeleteExpense(exp) ? [{ label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteExpense(exp) }] : [])
                   ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                     <TableCell className="font-medium">{exp.title}</TableCell>
@@ -669,20 +965,94 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                       <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${exp.payment_status === 'reglee' ? 'bg-green-500/10 text-green-500' : 'bg-zinc-700 text-zinc-400'}`}>
                         {exp.payment_status === 'reglee' ? 'Réglée' : 'Non réglée'}
                       </span>
+                      {exp.payment_status_pending && (
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                          Demande: {paymentStatusLabel(exp.payment_status_pending)}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell>
                       {exp.validation_status === 'en_attente' && <span className="flex items-center gap-1 text-amber-500 text-xs font-bold uppercase"><Clock className="w-3 h-3" /> En attente</span>}
                       {exp.validation_status === 'validee' && <span className="flex items-center gap-1 text-green-500 text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3" /> Validée</span>}
                       {exp.validation_status === 'rejetee' && <span className="flex items-center gap-1 text-red-500 text-xs font-bold uppercase"><XCircle className="w-3 h-3" /> Rejetée</span>}
                     </TableCell>
-                    {profile.role === 'tresoriere_generale' && (
+                    {(canManageExpensePayment || profile.role === 'tresoriere_generale') && (
                       <TableCell className="text-right">
-                        {exp.validation_status === 'en_attente' && (
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10" onClick={() => handleValidateExpense(exp.id, 'validee')}>Valider</Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={() => handleValidateExpense(exp.id, 'rejetee')}>Rejeter</Button>
-                          </div>
-                        )}
+                        <div className="flex flex-col items-end gap-2">
+                          {profile.role === 'tresoriere_generale' && exp.validation_status === 'en_attente' && (
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10" onClick={() => handleValidateExpense(exp.id, 'validee')}>Valider</Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={() => handleValidateExpense(exp.id, 'rejetee')}>Rejeter</Button>
+                            </div>
+                          )}
+
+                          {canManageExpensePayment && !exp.payment_status_pending && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                              onClick={() => handleRequestExpensePaymentChange(exp, exp.payment_status === 'reglee' ? 'non_reglee' : 'reglee')}
+                            >
+                              Demander {exp.payment_status === 'reglee' ? 'non réglée' : 'réglée'}
+                            </Button>
+                          )}
+
+                          {canManageExpensePayment && exp.payment_status_pending && exp.payment_status_requested_by !== profile.id && (
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10" onClick={() => handleConfirmExpensePaymentChange(exp)}>Confirmer</Button>
+                              <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10" onClick={() => handleRejectExpensePaymentChange(exp)}>Rejeter</Button>
+                            </div>
+                          )}
+
+                          {canManageExpensePayment && exp.payment_status_pending && exp.payment_status_requested_by === profile.id && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">En attente de l’autre validation</span>
+                          )}
+
+                          {canEditExpense(exp) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800"
+                              onClick={() => openExpenseEditor(exp)}
+                            >
+                              <Pencil className="w-3.5 h-3.5 mr-1" />
+                              Modifier
+                            </Button>
+                          )}
+
+                          {exp.validation_status === 'validee' && exp.deletion_status === null && ['tresoriere', 'tresoriere_generale', 'admin'].includes(profile.role) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10"
+                              onClick={() => handleDeleteExpense(exp)}
+                            >
+                              Demander suppression
+                            </Button>
+                          )}
+
+                          {exp.deletion_status === 'en_attente_counterpart' && exp.deletion_requested_by !== profile.id && ['tresoriere', 'tresoriere_generale'].includes(profile.role) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 border-green-500/50 text-green-500 hover:bg-green-500/10"
+                              onClick={() => handleDeleteExpense(exp)}
+                            >
+                              Valider suppression
+                            </Button>
+                          )}
+
+                          {exp.deletion_status === 'en_attente_admin' && profile.role === 'admin' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 border-red-500/50 text-red-500 hover:bg-red-500/10"
+                              onClick={() => handleDeleteExpense(exp)}
+                            >
+                              Validation admin
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
@@ -731,6 +1101,65 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
           </Card>
         )}
       </div>
+
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-lg bg-zinc-950 border-zinc-800 shadow-2xl">
+            <CardHeader className="border-b border-zinc-800/50 pb-4">
+              <CardTitle className="flex justify-between items-center gap-4">
+                Modifier une dépense
+                <button
+                  onClick={closeExpenseEditor}
+                  className="text-zinc-500 hover:text-white transition-colors"
+                >
+                  <Plus className="w-5 h-5 rotate-45" />
+                </button>
+              </CardTitle>
+              <CardDescription>
+                Modifications autorisées uniquement pendant la première minute et avant validation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <form onSubmit={handleUpdateExpense} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Titre</label>
+                  <Input value={editExpenseTitle} onChange={(e) => setEditExpenseTitle(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Bénéficiaire</label>
+                  <Input value={editExpenseAuthor} onChange={(e) => setEditExpenseAuthor(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">Montant (F)</label>
+                  <Input type="number" min={1} value={editExpenseAmount || ''} onChange={(e) => setEditExpenseAmount(Number(e.target.value))} required className="bg-zinc-800 border-zinc-700" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-zinc-400 uppercase">État du paiement</label>
+                  <Select value={editExpensePaymentStatus} onValueChange={(v) => setEditExpensePaymentStatus(v as any)}>
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectItem value="non_reglee">Non réglée</SelectItem>
+                      <SelectItem value="reglee">Réglée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button type="button" variant="outline" className="flex-1 bg-transparent border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white" onClick={closeExpenseEditor}>
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-900/20"
+                    disabled={editExpenseSaving || !canEditExpense(editingExpense)}
+                  >
+                    {editExpenseSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Modal d'ajout de paiement partiel pour le Trésorier */}
       {selectedSaleForPayment && (

@@ -7,9 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
-import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2, FileText } from 'lucide-react';
+import { UserPlus, Shield, RefreshCw, Ticket, Download, TrendingDown, Wallet, ArrowDownRight, Trash2, FileText, Pencil, Camera, Loader2 } from 'lucide-react';
 import { notify } from '../lib/notify';
 import ContextMenu from './ContextMenu';
+import FinancialSummaryCards from './FinancialSummaryCards';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -19,6 +20,15 @@ export default function AdminView({ profile }: { profile: Profile }) {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('vendeur');
   const [newUserName, setNewUserName] = useState('');
+  const [invitingUser, setInvitingUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('vendeur');
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [editAvatarPreview, setEditAvatarPreview] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Quotas state
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
@@ -38,6 +48,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
   const [exportFilter, setExportFilter] = useState({ ticket: '', status: '', filiere: '' });
   const [totalEncaisse, setTotalEncaisse] = useState(0);
   const [totalDepensesActees, setTotalDepensesActees] = useState(0);
+  const [pendingExpensePaymentChanges, setPendingExpensePaymentChanges] = useState(0);
 
   useEffect(() => {
     fetchUsers();
@@ -51,7 +62,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
         supabase.from('ticket_types').select('*'),
         supabase.from('quotas').select('*, seller:profiles!seller_id(full_name, email), sales:sales(id)').order('created_at', { ascending: false }),
         supabase.from('payments').select('amount'),
-        supabase.from('expenses').select('amount, payment_status, validation_status')
+        supabase.from('expenses').select('amount, payment_status, validation_status, payment_status_pending, payment_status_requested_by')
       ]);
 
       if (usersRes.error) throw usersRes.error;
@@ -75,6 +86,11 @@ export default function AdminView({ profile }: { profile: Profile }) {
         .filter((e: any) => e.payment_status === 'reglee' && e.validation_status === 'validee')
         .reduce((acc: number, e: any) => acc + e.amount, 0);
       setTotalDepensesActees(depensesActees);
+
+      const pendingPaymentChanges = (expensesRes.data || [])
+        .filter((e: any) => e.payment_status_pending && e.payment_status_requested_by)
+        .length;
+      setPendingExpensePaymentChanges(pendingPaymentChanges);
     } catch (error: any) {
       toast.error('Erreur lors du chargement des utilisateurs');
     } finally {
@@ -84,10 +100,100 @@ export default function AdminView({ profile }: { profile: Profile }) {
 
   async function handleCreateUser(e: React.FormEvent) {
     e.preventDefault();
-    // Note: In a real app, you'd use a Supabase Edge Function or Admin API to create auth users.
-    // For this demo, we'll assume users sign up themselves and admin just updates their role.
-    // Or we can use a "Pre-registration" table.
-    toast.info("L'utilisateur doit d'abord s'inscrire. Vous pourrez ensuite modifier son rôle.");
+    if (!newUserEmail.trim() || !newUserName.trim()) {
+      toast.error('Nom et email sont requis.');
+      return;
+    }
+
+    setInvitingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-pre-register', {
+        body: {
+          email: newUserEmail.trim(),
+          full_name: newUserName.trim(),
+          role: newUserRole,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success('Compte pré-enregistré et invitation envoyée.');
+      setNewUserEmail('');
+      setNewUserName('');
+      setNewUserRole('vendeur');
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de la création du compte');
+    } finally {
+      setInvitingUser(false);
+    }
+  }
+
+  function openEditUser(user: Profile) {
+    setEditingUser(user);
+    setEditFullName(user.full_name || '');
+    setEditPhone(user.phone || '');
+    setEditRole(user.role);
+    setEditIsActive(user.is_active);
+    setEditAvatarFile(null);
+    setEditAvatarPreview(user.avatar_url || null);
+  }
+
+  function closeEditUser() {
+    setEditingUser(null);
+    setEditAvatarFile(null);
+    setEditAvatarPreview(null);
+    setEditSaving(false);
+  }
+
+  function handleEditAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditAvatarFile(file);
+    setEditAvatarPreview(URL.createObjectURL(file));
+  }
+
+  async function handleUpdateUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setEditSaving(true);
+    try {
+      let avatarUrl = editingUser.avatar_url;
+
+      if (editAvatarFile) {
+        const ext = editAvatarFile.name.split('.').pop();
+        const path = `${editingUser.id}/avatar.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, editAvatarFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+        avatarUrl = data.publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editFullName || null,
+          phone: editPhone || null,
+          avatar_url: avatarUrl,
+          role: editRole,
+          is_active: editIsActive,
+        })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+
+      toast.success('Profil mis à jour');
+      closeEditUser();
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors de la mise à jour du profil');
+    } finally {
+      setEditSaving(false);
+    }
   }
 
   async function handleAssignQuota(e: React.FormEvent) {
@@ -336,37 +442,8 @@ export default function AdminView({ profile }: { profile: Profile }) {
         </div>
       </header>
 
-      {/* Panneau financier — Admin uniquement */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-2">
-              <Wallet className="w-5 h-5 text-green-500" />
-              <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Fonds Encaissés</span>
-            </div>
-            <p className="text-2xl font-bold text-green-500">{totalEncaisse.toLocaleString()} F</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-2">
-              <TrendingDown className="w-5 h-5 text-red-400" />
-              <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Dépenses Actées</span>
-            </div>
-            <p className="text-2xl font-bold text-red-400">{totalDepensesActees.toLocaleString()} F</p>
-            <p className="text-xs text-zinc-600 mt-1">Réglées + validées uniquement</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-amber-500/10 border-amber-500/30">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 mb-2">
-              <ArrowDownRight className="w-5 h-5 text-amber-500" />
-              <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">Reste en Caisse</span>
-            </div>
-            <p className="text-2xl font-bold text-amber-500">{(totalEncaisse - totalDepensesActees).toLocaleString()} F</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Panneau financier — lecture seule */}
+      <FinancialSummaryCards />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <Card className="lg:col-span-2 bg-zinc-900 border-zinc-800">
@@ -396,11 +473,11 @@ export default function AdminView({ profile }: { profile: Profile }) {
                         </div>
                         <div>
                           <p>{u.full_name || '---'}</p>
-                          {u.pending_changes && Object.keys(u.pending_changes).length > 0 && (
-                            <p className="text-[10px] text-amber-500">⏳ Modif. en attente</p>
-                          )}
-                        </div>
-                      </div>
+                  {u.pending_changes && Object.keys(u.pending_changes).length > 0 && (
+                    <p className="text-[10px] text-amber-500">⏳ Modif. en attente</p>
+                  )}
+                </div>
+              </div>
                     </TableCell>
                     <TableCell className="text-zinc-400 text-xs">{u.email}</TableCell>
                     <TableCell>
@@ -439,6 +516,10 @@ export default function AdminView({ profile }: { profile: Profile }) {
                               onClick={() => rejectChanges(u.id)}>✗</Button>
                           </div>
                         )}
+                        <Button size="sm" variant="outline" className="h-8 px-2 text-xs border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                          onClick={() => openEditUser(u)}>
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Modifier
+                        </Button>
                         <Select defaultValue={u.role} onValueChange={(val) => updateRole(u.id, val as UserRole)}>
                           <SelectTrigger className="w-[120px] bg-zinc-800 border-zinc-700 h-8 text-xs"><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -495,18 +576,19 @@ export default function AdminView({ profile }: { profile: Profile }) {
                   <SelectTrigger className="bg-zinc-800 border-zinc-700">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
-                    <SelectItem value="vendeur">Vendeur</SelectItem>
-                    <SelectItem value="comite">Comité</SelectItem>
-                    <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
+                    <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="vendeur">Vendeur</SelectItem>
+                      <SelectItem value="comite">Comité</SelectItem>
+                      <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
                     <SelectItem value="tresoriere_generale">Comptable</SelectItem>
                     <SelectItem value="direction">Direction</SelectItem>
                     <SelectItem value="observateur">Observateur</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700">
-                Pré-enregistrer
+              <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={invitingUser}>
+                {invitingUser ? 'Envoi...' : 'Pré-enregistrer et envoyer'}
               </Button>
             </form>
           </CardContent>
@@ -700,6 +782,119 @@ export default function AdminView({ profile }: { profile: Profile }) {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal édition profil */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-5 border-b border-zinc-800">
+              <div>
+                <p className="font-bold text-lg">Modifier le compte</p>
+                <p className="text-xs text-zinc-500">{editingUser.email}</p>
+              </div>
+              <button onClick={closeEditUser} className="text-zinc-500 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="p-5 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6">
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Avatar</p>
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-28 h-28 rounded-full bg-zinc-800 border-2 border-zinc-700 overflow-hidden flex items-center justify-center relative group">
+                      {editAvatarPreview ? (
+                        <img src={editAvatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-3xl font-bold text-zinc-400">
+                          {(editingUser.full_name || editingUser.email)[0].toUpperCase()}
+                        </span>
+                      )}
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <Camera className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    <label className="w-full cursor-pointer text-center px-3 py-2 rounded-lg border border-zinc-700 bg-zinc-900 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                      Choisir une image
+                      <input type="file" accept="image/*" className="hidden" onChange={handleEditAvatarChange} />
+                    </label>
+                    <p className="text-[11px] text-zinc-500 text-center">L'image importée remplace l'avatar actuel.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Nom complet</label>
+                    <Input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="Nom complet" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">WhatsApp</label>
+                    <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="+225 07 00 00 00 00" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Rôle</label>
+                    <Select value={editRole} onValueChange={(val) => setEditRole(val as UserRole)}>
+                      <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="vendeur">Vendeur</SelectItem>
+                        <SelectItem value="comite">Comité</SelectItem>
+                        <SelectItem value="tresoriere">Trésorière Générale</SelectItem>
+                        <SelectItem value="tresoriere_generale">Comptable</SelectItem>
+                        <SelectItem value="direction">Direction</SelectItem>
+                        <SelectItem value="observateur">Observateur</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Statut du compte</label>
+                    <button
+                      type="button"
+                      onClick={() => setEditIsActive(v => !v)}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${editIsActive ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}
+                    >
+                      <span className="text-sm font-medium">{editIsActive ? 'Compte activé' : 'Compte désactivé'}</span>
+                      <span className="text-xs uppercase tracking-wider">Cliquer pour basculer</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {editingUser.pending_changes && Object.keys(editingUser.pending_changes).length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Modifications en attente</p>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs border-green-500/50 text-green-500 hover:bg-green-500/10"
+                        onClick={() => approveChanges(editingUser.id, editingUser.pending_changes)}>
+                        ✓ Approuver
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs border-red-500/50 text-red-500 hover:bg-red-500/10"
+                        onClick={() => rejectChanges(editingUser.id)}>
+                        ✗ Rejeter
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 space-y-1">
+                    {editingUser.pending_changes.full_name && <p><span className="text-zinc-400">Nom :</span> {editingUser.pending_changes.full_name}</p>}
+                    {editingUser.pending_changes.phone && <p><span className="text-zinc-400">Téléphone :</span> {editingUser.pending_changes.phone}</p>}
+                    {editingUser.pending_changes.avatar_url && <p><span className="text-zinc-400">Avatar :</span> Nouvelle image proposée</p>}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="outline" className="flex-1 border-zinc-700" onClick={closeEditUser}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={editSaving} className="flex-1 bg-amber-600 hover:bg-amber-700">
+                  {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
