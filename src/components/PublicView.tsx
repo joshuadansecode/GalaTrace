@@ -193,18 +193,18 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 <th colSpan={2} className="text-right text-[10px] font-semibold text-green-500 uppercase tracking-wider px-4 py-1.5 w-[20%] hidden sm:table-cell">Paiement</th>
                 <th colSpan={2} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-1.5 w-[18%]">Placement</th>
               </tr>
-              {/* Ligne de colonnes */}
-              <tr className="border-b-2 border-border">
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N°</th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Type <SortIcon k="ticket_type_id" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière</th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[12%] hidden lg:table-cell">Vendeur</th>
-                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] hidden sm:table-cell">Payé</th>
-                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste <SortIcon k="remaining_balance" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[9%] hidden md:table-cell">Table</th>
-                <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2 w-[9%]">Statut</th>
-              </tr>
+               {/* Ligne de colonnes */}
+               <tr className="border-b-2 border-border">
+                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
+                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N° Ticket <SortIcon k="ticket_number" /></th>
+                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Type billet <SortIcon k="ticket_type_id" /></th>
+                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière</th>
+                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[12%] hidden lg:table-cell">Vendeur</th>
+                 <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] hidden sm:table-cell">Payé (F)</th>
+                 <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste (F) <SortIcon k="remaining_balance" /></th>
+                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[9%] hidden md:table-cell">Table</th>
+                 <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2 w-[9%]">Statut</th>
+               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {paginatedGuests.map((guest) => {
@@ -271,44 +271,80 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
       {/* Modal édition invité (admin) */}
       {editingGuest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl">
+          <div className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl">
             <div className="flex justify-between items-center p-5 border-b border-border">
-              <p className="font-bold">Edition admin complète</p>
+              <p className="font-bold">Édition admin complète</p>
               <button onClick={() => setEditingGuest(null)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleEdit} className="p-5 space-y-3">
-              <p className="text-xs text-muted-foreground">Admin: tous les champs de vente et d'invité sont modifiables.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom de l'acheteur" />
-                <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="WhatsApp" />
-                <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="N° Ticket" />
-                <Input value={editFiliere} onChange={e => setEditFiliere(e.target.value.toUpperCase())} placeholder="Filière" />
-                <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-                  <option value="">Année</option>
-                  <option value="1">1ère</option>
-                  <option value="2">2ème</option>
-                  <option value="3">3ème</option>
-                  <option value="Externe">Externe</option>
-                </select>
-                <select value={editTicketTypeId} onChange={e => setEditTicketTypeId(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-                  <option value="">Type de ticket</option>
-                  <option value="gold_interne">Gold Interne</option>
-                  <option value="platinum_interne">Platinum Interne</option>
-                  <option value="diamond_interne">Diamond Interne</option>
-                  <option value="gold_externe">Gold Externe</option>
-                  <option value="diamond_externe">Diamond Externe</option>
-                  <option value="royal">Royal</option>
-                </select>
-                <select value={editSellerId} onChange={e => setEditSellerId(e.target.value)} className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground sm:col-span-2">
-                  <option value="">Vendeur</option>
-                  {sellers.map((s: any) => <option key={s.id} value={s.id}>{s.full_name || s.email}</option>)}
-                </select>
-                <Input type="number" min="0" value={editBasePrice} onChange={e => setEditBasePrice(e.target.value)} placeholder="Prix de base" />
-                <Input type="number" min="0" value={editDiscountAmount} onChange={e => setEditDiscountAmount(e.target.value)} placeholder="Remise" />
-                <Input type="number" min="0" value={editFinalPrice} onChange={e => setEditFinalPrice(e.target.value)} placeholder="Prix final" />
-                <Input value={editDiscountSource} onChange={e => setEditDiscountSource(e.target.value)} placeholder="Source remise" />
+            <form onSubmit={handleEdit} className="p-5 space-y-4">
+              <p className="text-xs text-muted-foreground">Admin : tous les champs de vente et d'invité sont modifiables.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Nom acheteur *</label>
+                  <Input value={editName} onChange={e => setEditName(e.target.value)} required placeholder="Nom de l'acheteur" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">WhatsApp</label>
+                  <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Numéro WhatsApp" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">N° Ticket</label>
+                  <Input value={editTicketNumber} onChange={e => setEditTicketNumber(e.target.value)} placeholder="Numéro du ticket" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Filière</label>
+                  <Input value={editFiliere} onChange={e => setEditFiliere(e.target.value.toUpperCase())} placeholder="Ex: HTR" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Année</label>
+                  <select value={editAnnee} onChange={e => setEditAnnee(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                    <option value="">Année</option>
+                    <option value="1">1ère</option>
+                    <option value="2">2ème</option>
+                    <option value="3">3ème</option>
+                    <option value="Externe">Externe</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Type de ticket</label>
+                  <select value={editTicketTypeId} onChange={e => setEditTicketTypeId(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                    <option value="">Type de ticket</option>
+                    <option value="gold_interne">Gold Interne</option>
+                    <option value="platinum_interne">Platinum Interne</option>
+                    <option value="diamond_interne">Diamond Interne</option>
+                    <option value="gold_externe">Gold Externe</option>
+                    <option value="diamond_externe">Diamond Externe</option>
+                    <option value="royal">Royal</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Vendeur</label>
+                  <select value={editSellerId} onChange={e => setEditSellerId(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                    <option value="">Vendeur</option>
+                    {sellers.map((s: any) => <option key={s.id} value={s.id}>{s.full_name || s.email}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Prix de base (F)</label>
+                  <Input type="number" min="0" value={editBasePrice} onChange={e => setEditBasePrice(e.target.value)} placeholder="15000" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Remise (F)</label>
+                  <Input type="number" min="0" value={editDiscountAmount} onChange={e => setEditDiscountAmount(e.target.value)} placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Prix final (F)</label>
+                  <Input type="number" min="0" value={editFinalPrice} onChange={e => setEditFinalPrice(e.target.value)} placeholder="15000" />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Source de la remise</label>
+                  <Input value={editDiscountSource} onChange={e => setEditDiscountSource(e.target.value)} placeholder="Ex: BDE, Promotion" />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+                  <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Informations complémentaires" />
+                </div>
               </div>
-              <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notes" />
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setEditingGuest(null)} className="flex-1 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted text-sm">Annuler</button>
                 <button type="submit" className="flex-1 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium">Enregistrer</button>

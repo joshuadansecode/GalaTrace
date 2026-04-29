@@ -937,16 +937,16 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
           </CardHeader>
           <CardContent>
             <Table>
-              <TableHeader>
-                <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-400">Titre</TableHead>
-                  <TableHead className="text-zinc-400">Bénéficiaire</TableHead>
-                  <TableHead className="text-zinc-400">Montant</TableHead>
-                  <TableHead className="text-zinc-400">Paiement</TableHead>
-                  <TableHead className="text-zinc-400">Statut</TableHead>
-                  {canManageExpensePayment || profile.role === 'tresoriere_generale' ? <TableHead className="text-zinc-400 text-right">Action</TableHead> : null}
-                </TableRow>
-              </TableHeader>
+               <TableHeader>
+                 <TableRow className="border-zinc-800 hover:bg-transparent">
+                   <TableHead className="text-zinc-400">Titre</TableHead>
+                   <TableHead className="text-zinc-400">Bénéficiaire</TableHead>
+                   <TableHead className="text-zinc-400">Montant (F)</TableHead>
+                   <TableHead className="text-zinc-400">Statut paiement</TableHead>
+                   <TableHead className="text-zinc-400">Validation</TableHead>
+                   {canManageExpensePayment || profile.role === 'tresoriere_generale' ? <TableHead className="text-zinc-400 text-right">Actions</TableHead> : null}
+                 </TableRow>
+               </TableHeader>
               <TableBody>
                 {expenses.length === 0 ? (
                   <TableRow className="border-zinc-800">
