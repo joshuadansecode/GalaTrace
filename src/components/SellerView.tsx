@@ -110,7 +110,9 @@ export default function SellerView({ profile }: { profile: Profile }) {
     name: qs.name,
     value: qs.sold
   })).filter(d => d.value > 0);
-  const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
+  const totalSoldTickets = chartData.reduce((acc, item) => acc + item.value, 0);
+  const totalSalesValue = sales.reduce((acc, sale) => acc + (sale.final_price || 0), 0);
 
   async function handleDeleteSale(saleId: string) {
     if (!confirm('Supprimer cette vente ? Cette action est irréversible.')) return;
@@ -268,9 +270,6 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 <span className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-zinc-400">
                   <span className="h-2 w-2 rounded-full bg-zinc-500" /> Vendu / quota
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-cyan-400">
-                  <span className="h-2 w-2 rounded-full bg-cyan-500" /> Pourcentage
-                </span>
               </div>
               <div className="space-y-6">
                 {visibleQuotaStats.map((qs) => {
@@ -306,30 +305,51 @@ export default function SellerView({ profile }: { profile: Profile }) {
               </CardTitle>
               <CardDescription>Volume de ventes par type.</CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-center items-center h-[200px]">
+            <CardContent className="space-y-4">
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
-                      itemStyle={{ color: '#fff' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <>
+                  <div className="relative h-[240px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60">
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Total ventes</p>
+                      <p className="mt-1 text-3xl font-bold text-white">{totalSoldTickets}</p>
+                      <p className="mt-1 text-xs text-zinc-400">{totalSalesValue.toLocaleString()} F encaissés</p>
+                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={70}
+                          outerRadius={95}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="#18181b"
+                          strokeWidth={2}
+                          animationDuration={700}
+                        >
+                          {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#a1a1aa' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {chartData.slice(0, 4).map((item, index) => (
+                      <span key={item.name} className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-[11px] text-zinc-300">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                        <span className="truncate max-w-32">{item.name}</span>
+                        <span className="text-zinc-500">{item.value}</span>
+                      </span>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p className="text-zinc-600 text-sm">Aucune vente enregistrée</p>
               )}
