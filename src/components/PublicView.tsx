@@ -6,7 +6,6 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Search, X, CreditCard, StickyNote, Pencil, Trash2, Users, Armchair, Phone, BadgeCheck, CircleAlert, Eye, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import ContextMenu from './ContextMenu';
 import { formatTicketType } from '../lib/utils';
 import { formatForDisplay, toE164, isValidPhoneNumber } from '../lib/phone';
 
@@ -351,54 +350,47 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
               </colgroup>
               <thead className="sticky top-0 z-10 bg-card">
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">Contact</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_number')}>Ticket <SortIcon k="ticket_number" /></th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Billet <SortIcon k="ticket_type_id" /></th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">Vendeur</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Paiement <SortIcon k="remaining_balance" /></th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">Placement</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground">Contact</th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_number')}>Ticket <SortIcon k="ticket_number" /></th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Billet <SortIcon k="ticket_type_id" /></th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground">Vendeur</th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Paiement <SortIcon k="remaining_balance" /></th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-left text-xs font-medium text-muted-foreground">Placement</th>
+                  <th className="whitespace-nowrap overflow-hidden px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-card">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="whitespace-nowrap px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={9} className="whitespace-nowrap overflow-hidden px-4 py-12 text-center text-muted-foreground">
                       Chargement de la liste des invités...
                     </td>
                   </tr>
                 ) : null}
 
                 {!loading && paginatedGuests.map((guest) => {
-                  const contextItems = isAdmin ? [
-                    { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingGuest(guest); setEditName(guest.buyer_name || ''); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditTicketTypeId(guest.ticket_type_id || ''); setEditSellerId(guest.seller_id || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditBasePrice(String(guest.base_price ?? '')); setEditDiscountAmount(String(guest.discount_amount ?? '')); setEditFinalPrice(String(guest.final_price ?? '')); setEditDiscountSource(guest.discount_source || ''); setEditNotes(guest.notes || ''); } },
-                    { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDelete(guest.id) }
-                  ] : [];
-
                   return (
-                    <React.Fragment key={guest.id}>
-                      <ContextMenu items={contextItems}>
-                      <tr className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => openGuest(guest)}>
-                        <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
+                    <tr key={guest.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => openGuest(guest)}>
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 font-medium text-foreground">
                           <div className="flex min-w-0 items-center gap-2">
                             <span className="min-w-0 truncate">{guest.buyer_name}</span>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{guest.ticket_number || '—'}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-foreground">{formatTicketType(guest.ticket_type_id)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-sm text-muted-foreground">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</td>
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-sm text-muted-foreground">{guest.ticket_number || '—'}</td>
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-sm text-foreground">{formatTicketType(guest.ticket_type_id)}</td>
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-sm text-muted-foreground">
                           {guest.filiere || guest.annee
                             ? <span className="truncate block text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
                             : '—'}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-sm text-muted-foreground">
                           <span className="truncate block">{guest.seller?.full_name || guest.seller?.email || '—'}</span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
-                          <div className="ml-auto flex w-fit flex-col items-end gap-1">
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-right text-sm tabular-nums">
+                          <div className="ml-auto flex w-full min-w-0 flex-col items-end gap-1">
                             <span className={`font-semibold ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
                               {guest.remaining_balance?.toLocaleString()} F restant
                             </span>
@@ -410,11 +402,11 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                             </span>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-sm text-muted-foreground">
                           <span className="truncate block text-foreground">{guest.table ? `${guest.table.name}${guest.seat ? ` #${guest.seat.seat_number}` : ''}` : '—'}</span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="whitespace-nowrap overflow-hidden px-4 py-3 text-right">
+                          <div className="flex w-full justify-end gap-1">
                             <Button type="button" variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); openGuest(guest); }} title="Voir le détail">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -430,15 +422,13 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                             ) : null}
                           </div>
                         </td>
-                      </tr>
-                      </ContextMenu>
-                    </React.Fragment>
+                    </tr>
                   );
                 })}
 
                 {!loading && filteredGuests.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="whitespace-nowrap px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={9} className="whitespace-nowrap overflow-hidden px-4 py-12 text-center text-muted-foreground">
                       Aucun invité trouvé avec ces filtres.
                     </td>
                   </tr>
