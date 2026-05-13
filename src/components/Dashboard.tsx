@@ -134,7 +134,6 @@ export default function Dashboard({ profile, session }: DashboardProps) {
     { id: 'overview', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
     { id: 'sales', label: 'Ventes & Tickets', icon: Ticket, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale'] },
     { id: 'treasury', label: 'Trésorerie', icon: Wallet, roles: ['admin', 'tresoriere', 'tresoriere_generale', 'direction'] },
-    { id: 'tg', label: 'TG', icon: Wallet, roles: ['admin', 'tresoriere_generale'] },
     { id: 'admin', label: 'Administration', icon: Users, roles: ['admin'] },
     { id: 'placement', label: 'Placement', icon: Armchair, roles: ['admin', 'direction'] },
     { id: 'public', label: 'Liste Invités', icon: Eye, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },

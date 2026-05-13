@@ -357,10 +357,11 @@ export default function SellerView({ profile }: { profile: Profile }) {
                   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
                   return (<>
                     {paginated.map((s) => (
-                  <ContextMenu key={s.id} items={[
-                    { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingSale(s); setEditBuyerName(s.buyer_name); setEditNotes((s as any).notes || ''); setEditTicketNumber((s as any).ticket_number || ''); setEditBuyerPhone((s as any).buyer_phone || ''); } },
-                    { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteSale(s.id) }
-                  ]}>
+                  <React.Fragment key={s.id}>
+                    <ContextMenu items={[
+                      { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingSale(s); setEditBuyerName(s.buyer_name); setEditNotes((s as any).notes || ''); setEditTicketNumber((s as any).ticket_number || ''); setEditBuyerPhone((s as any).buyer_phone || ''); } },
+                      { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteSale(s.id) }
+                    ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
@@ -407,7 +408,8 @@ export default function SellerView({ profile }: { profile: Profile }) {
                       )}
                     </TableCell>
                   </TableRow>
-                  </ContextMenu>
+                    </ContextMenu>
+                  </React.Fragment>
                     ))}
                     {filtered.length === 0 && (
                       <TableRow className="border-zinc-800">

@@ -154,9 +154,10 @@ export default function PlacementView({ profile }: { profile: Profile }) {
                   const tableSeats = seats.filter(s => s.table_id === table.id).sort((a, b) => a.seat_number - b.seat_number);
                   const occupied = tableSeats.filter(s => s.sale_id).length;
                   return (
-                    <ContextMenu key={table.id} items={[
-                      { label: 'Supprimer la table', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteTable(table.id) }
-                    ]}>
+                    <React.Fragment key={table.id}>
+                      <ContextMenu items={[
+                        { label: 'Supprimer la table', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteTable(table.id) }
+                      ]}>
                     <Card className="bg-zinc-900 border-zinc-800">
                       <CardHeader className="bg-zinc-800/30 border-b border-zinc-800 py-3 px-5">
                         <div className="flex justify-between items-center">
@@ -197,7 +198,8 @@ export default function PlacementView({ profile }: { profile: Profile }) {
                         </div>
                       </CardContent>
                     </Card>
-                    </ContextMenu>
+                      </ContextMenu>
+                    </React.Fragment>
                   );
                 })}
               </div>

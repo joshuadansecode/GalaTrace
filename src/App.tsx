@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './lib/supabase';
 import { Profile } from './types';
 import { Toaster } from 'sonner';
@@ -51,7 +51,7 @@ export default function App() {
     }
   }
 
-  async function handlePasswordUpdate(e: React.FormEvent) {
+  async function handlePasswordUpdate(e: FormEvent) {
     e.preventDefault();
     if (newPassword.length < 6) { toast.error('Minimum 6 caractères'); return; }
     setSavingPassword(true);

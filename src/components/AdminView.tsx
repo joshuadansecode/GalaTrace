@@ -403,11 +403,11 @@ export default function AdminView({ profile }: { profile: Profile }) {
         if (exportCols.annee) row.push(`"${s.annee || ''}"`);
         if (exportCols.ticket_type) row.push(`"${ticketTypes.find(t => t.id === s.ticket_type_id)?.name || s.ticket_type_id}"`);
         if (exportCols.vendeur) row.push(`"${s.seller?.full_name || s.seller?.email || ''}"`);
-        if (exportCols.base_price) row.push(s.base_price);
-        if (exportCols.discount) row.push(s.discount_amount || 0);
-        if (exportCols.final_price) row.push(s.final_price);
-        if (exportCols.total_paid) row.push(totalPaid);
-        if (exportCols.remaining) row.push(remaining);
+        if (exportCols.base_price) row.push(String(s.base_price ?? ''));
+        if (exportCols.discount) row.push(String(s.discount_amount || 0));
+        if (exportCols.final_price) row.push(String(s.final_price ?? ''));
+        if (exportCols.total_paid) row.push(String(totalPaid));
+        if (exportCols.remaining) row.push(String(remaining));
         if (exportCols.table) row.push(`"${seat?.table?.name ? `${seat.table.name} #${seat.seat_number}` : ''}"`);
         if (exportCols.notes) row.push(`"${(s.notes || '').replace(/"/g, '""')}"`);
         csv += row.join(',') + '\n';
@@ -485,7 +485,7 @@ export default function AdminView({ profile }: { profile: Profile }) {
                     </TableCell>
                     <TableCell className="text-zinc-400 text-xs">{u.email}</TableCell>
                     <TableCell className="text-zinc-400 text-xs">
-                      {u.phone && isValidBeninNumber(u.phone) ? (
+                      {u.phone && isValidPhoneNumber(u.phone) ? (
                         <a href={`https://wa.me/${toE164(u.phone)}`} target="_blank" rel="noreferrer"
                           className="text-green-500 text-xs hover:underline flex items-center gap-1">
                           📱 {formatForDisplay(u.phone)}
@@ -630,14 +630,15 @@ export default function AdminView({ profile }: { profile: Profile }) {
                     const remaining = Math.max(0, q.quantity_given - sold);
                     const pct = q.quantity_given > 0 ? Math.min(100, (sold / q.quantity_given) * 100) : 0;
                     return (
-                      <ContextMenu key={q.id} items={[
-                        { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: async () => {
-                          if (!confirm('Supprimer ce quota ?')) return;
-                          await supabase.from('quotas').delete().eq('id', q.id);
-                          fetchUsers();
-                        }}
-                      ]}>
-                        <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
+                      <React.Fragment key={q.id}>
+                        <ContextMenu items={[
+                          { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: async () => {
+                            if (!confirm('Supprimer ce quota ?')) return;
+                            await supabase.from('quotas').delete().eq('id', q.id);
+                            fetchUsers();
+                          }}
+                        ]}>
+                          <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                           <TableCell className="font-medium">{q.seller?.full_name || q.seller?.email || 'Inconnu'}</TableCell>
                           <TableCell className="text-zinc-400">{ticketTypes.find(t => t.id === q.ticket_type_id)?.name || q.ticket_type_id}</TableCell>
                           <TableCell className="font-bold text-amber-500">{q.quantity_given}</TableCell>
@@ -650,8 +651,9 @@ export default function AdminView({ profile }: { profile: Profile }) {
                             </div>
                             <p className="text-[10px] text-zinc-500 mt-1">{Math.round(pct)}%</p>
                           </TableCell>
-                        </TableRow>
-                      </ContextMenu>
+                          </TableRow>
+                        </ContextMenu>
+                      </React.Fragment>
                     );
                   })
                 )}

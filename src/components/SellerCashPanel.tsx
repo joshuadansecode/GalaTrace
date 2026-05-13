@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { notify, notifyRole } from '../lib/notify';
 
@@ -70,7 +70,7 @@ export default function SellerCashPanel({ sellerId, sellerName, canRecord, onVer
     setLoading(false);
   }
 
-  async function handleRecord(e: React.FormEvent) {
+  async function handleRecord(e: FormEvent) {
     e.preventDefault();
     if (amount <= 0) return;
     setSaving(true);

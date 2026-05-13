@@ -957,10 +957,11 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                     <TableCell colSpan={canManageExpensePayment || profile.role === 'tresoriere_generale' ? 6 : 5} className="text-center text-zinc-500 py-6">Aucune dépense enregistrée.</TableCell>
                   </TableRow>
                 ) : expenses.map((exp) => (
-                  <ContextMenu key={exp.id} items={[
-                    ...(canEditExpense(exp) ? [{ label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => openExpenseEditor(exp) }] : []),
-                    ...(canDeleteExpense(exp) ? [{ label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteExpense(exp) }] : [])
-                  ]}>
+                  <React.Fragment key={exp.id}>
+                    <ContextMenu items={[
+                      ...(canEditExpense(exp) ? [{ label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => openExpenseEditor(exp) }] : []),
+                      ...(canDeleteExpense(exp) ? [{ label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteExpense(exp) }] : [])
+                    ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                     <TableCell className="font-medium">{exp.title}</TableCell>
                     <TableCell className="text-zinc-400">{exp.author}</TableCell>
@@ -1076,7 +1077,8 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                       </TableCell>
                     )}
                   </TableRow>
-                  </ContextMenu>
+                    </ContextMenu>
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Sale, Seat, Table as TableType } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Search, X, CreditCard, StickyNote, Pencil, Trash2 } from 'lucide-react';
+import { Button } from './ui/button';
+import { Search, X, CreditCard, StickyNote, Pencil, Trash2, Users, Armchair, Phone, BadgeCheck, CircleAlert, Eye, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import ContextMenu from './ContextMenu';
 import { formatTicketType } from '../lib/utils';
@@ -70,7 +71,13 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
     setSeats(seatsRes.data || []);
     setTables(tablesRes.data || []);
     // Extraire vendeurs uniques
-    const uniqueSellers = Array.from(new Map(processed.map((s: any) => [s.seller?.email, s.seller]).filter(([k]) => k)).values());
+    const uniqueSellers = Array.from(
+      new Map(
+        processed
+          .filter((s: any) => s.seller?.email)
+          .map((s: any) => [s.seller.email, s.seller] as const)
+      ).values()
+    );
     setSellers(uniqueSellers);
     setLoading(false);
   }
@@ -125,153 +132,371 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
     <span className="ml-1 text-muted-foreground">{sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
   );
 
-  const filteredGuests = sales
-    .filter(s => s.buyer_name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .filter(s => !filterTicket || s.ticket_type_id === filterTicket)
-    .filter(s => !filterStatus || (filterStatus === 'solde' ? s.remaining_balance === 0 : s.remaining_balance > 0))
-    .filter(s => !filterSeller || s.seller?.email === filterSeller)
-    .filter(s => !filterFiliere || (s.filiere || '').toUpperCase().includes(filterFiliere.toUpperCase()))
-    .sort((a, b) => {
-      const va = a[sortKey] ?? '';
-      const vb = b[sortKey] ?? '';
-      if (sortKey === 'remaining_balance') {
-        return sortDir === 'asc' ? Number(va) - Number(vb) : Number(vb) - Number(va);
-      }
-      return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
-    });
+  const enrichedGuests = useMemo(
+    () => sales.map((guest) => {
+      const seat = seats.find(s => s.sale_id === guest.id) || null;
+      const table = seat ? tables.find(t => t.id === seat.table_id) || null : null;
+      return {
+        ...guest,
+        seat,
+        table,
+        phoneValid: Boolean(guest.buyer_phone && isValidPhoneNumber(guest.buyer_phone)),
+      };
+    }),
+    [sales, seats, tables]
+  );
+
+  const summaryStats = useMemo(() => {
+    const total = enrichedGuests.length;
+    const sold = enrichedGuests.filter(guest => guest.remaining_balance === 0).length;
+    const placed = enrichedGuests.filter(guest => guest.seat).length;
+    const phoneReady = enrichedGuests.filter(guest => guest.phoneValid).length;
+    const outstanding = enrichedGuests.reduce((sum, guest) => sum + Math.max(0, Number(guest.remaining_balance || 0)), 0);
+    return { total, sold, placed, phoneReady, outstanding };
+  }, [enrichedGuests]);
+
+  const filteredGuests = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return enrichedGuests
+      .filter((guest) => {
+        const haystack = [
+          guest.buyer_name,
+          guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '',
+          guest.ticket_number,
+          formatTicketType(guest.ticket_type_id),
+          guest.seller?.full_name,
+          guest.seller?.email,
+          guest.filiere,
+          guest.annee,
+          guest.notes,
+          guest.table ? `${guest.table.name} ${guest.seat?.seat_number ?? ''}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        return (!query || haystack.includes(query))
+          && (!filterTicket || guest.ticket_type_id === filterTicket)
+          && (!filterStatus || (filterStatus === 'solde' ? guest.remaining_balance === 0 : guest.remaining_balance > 0))
+          && (!filterSeller || guest.seller?.email === filterSeller)
+          && (!filterFiliere || (guest.filiere || '').toUpperCase().includes(filterFiliere.toUpperCase()));
+      })
+      .sort((a, b) => {
+        const va = a[sortKey] ?? '';
+        const vb = b[sortKey] ?? '';
+        if (sortKey === 'remaining_balance') {
+          return sortDir === 'asc' ? Number(va) - Number(vb) : Number(vb) - Number(va);
+        }
+        return sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      });
+  }, [enrichedGuests, filterFiliere, filterSeller, filterStatus, filterTicket, searchTerm, sortDir, sortKey]);
+
   const paginatedGuests = filteredGuests.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setFilterTicket('');
+    setFilterStatus('');
+    setFilterSeller('');
+    setFilterFiliere('');
+    setSortKey('buyer_name');
+    setSortDir('asc');
+    setPage(0);
+  };
 
   return (
     <div className="space-y-8">
-      <header className="text-center max-w-2xl mx-auto">
-        <h2 className="text-3xl font-bold tracking-tight mb-2">Liste des Invités & Placement</h2>
-        <p className="text-muted-foreground">Consultez la liste officielle des participants et trouvez votre place.</p>
+      <header className="mx-auto max-w-4xl space-y-4 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+          <Users className="h-3.5 w-3.5" />
+          Liste des invités
+        </div>
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Liste des Invités &amp; Placement</h2>
+          <p className="mt-2 text-muted-foreground">
+            Recherche multi-champs sur le nom, téléphone, ticket, vendeur, filière et table.
+          </p>
+        </div>
       </header>
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Rechercher un nom..." className="pl-10"
-            value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }} />
-        </div>
-        <select value={filterTicket} onChange={(e) => { setFilterTicket(e.target.value); setPage(0); }}
-          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-          <option value="">Tous les tickets</option>
-          <option value="gold_interne">Gold Interne</option>
-          <option value="platinum_interne">Platinum Interne</option>
-          <option value="diamond_interne">Diamond Interne</option>
-          <option value="gold_externe">Gold Externe</option>
-          <option value="diamond_externe">Diamond Externe</option>
-          <option value="royal">Royal</option>
-        </select>
-        <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
-          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-          <option value="">Tous les statuts</option>
-          <option value="solde">Soldé</option>
-          <option value="partiel">Partiel</option>
-        </select>
-        <select value={filterSeller} onChange={(e) => { setFilterSeller(e.target.value); setPage(0); }}
-          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
-          <option value="">Tous les vendeurs</option>
-          {sellers.map((s: any) => <option key={s.email} value={s.email}>{s.full_name || s.email}</option>)}
-        </select>
-        <input
-          type="text"
-          placeholder="Filière (ex: HTR)"
-          value={filterFiliere}
-          onChange={(e) => { setFilterFiliere(e.target.value); setPage(0); }}
-          className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground uppercase w-32"
-        />
-        <span className="text-xs text-muted-foreground self-center">{filteredGuests.length} résultat(s)</span>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total</p>
+              <p className="mt-1 text-2xl font-bold">{summaryStats.total}</p>
+            </div>
+            <Users className="h-8 w-8 text-amber-500" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Soldés</p>
+              <p className="mt-1 text-2xl font-bold text-green-500">{summaryStats.sold}</p>
+            </div>
+            <BadgeCheck className="h-8 w-8 text-green-500" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Placés</p>
+              <p className="mt-1 text-2xl font-bold text-blue-400">{summaryStats.placed}</p>
+            </div>
+            <Armchair className="h-8 w-8 text-blue-400" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">WhatsApp OK</p>
+              <p className="mt-1 text-2xl font-bold text-cyan-400">{summaryStats.phoneReady}</p>
+            </div>
+            <Phone className="h-8 w-8 text-cyan-400" />
+          </CardContent>
+        </Card>
+        <Card className="border-border bg-card/80 backdrop-blur-sm">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Reste dû</p>
+              <p className="mt-1 text-2xl font-bold text-amber-500">{summaryStats.outstanding.toLocaleString()} F</p>
+            </div>
+            <CircleAlert className="h-8 w-8 text-amber-500" />
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="bg-card border-border">
-        <CardContent className="p-0">
-          <div className="w-full overflow-x-auto">
-          <table className="w-full table-fixed text-sm">
-            <thead className="sticky top-0 bg-card z-10">
-              {/* Ligne de groupes */}
-              <tr className="border-b border-border/50">
-                <th colSpan={2} className="text-left text-[10px] font-semibold text-amber-500 uppercase tracking-wider px-4 py-1.5 w-[29%]">Invité</th>
-                <th colSpan={2} className="text-left text-[10px] font-semibold text-blue-400 uppercase tracking-wider px-4 py-1.5 w-[21%] hidden md:table-cell">Billet</th>
-                <th colSpan={1} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-1.5 w-[12%] hidden lg:table-cell">Vendeur</th>
-                <th colSpan={2} className="text-right text-[10px] font-semibold text-green-500 uppercase tracking-wider px-4 py-1.5 w-[20%] hidden sm:table-cell">Paiement</th>
-                <th colSpan={2} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-1.5 w-[18%]">Placement</th>
-              </tr>
-              {/* Ligne de colonnes */}
-              <tr className="border-b-2 border-border">
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[22%] cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden sm:table-cell cursor-pointer" onClick={() => toggleSort('ticket_number')}>N° Ticket <SortIcon k="ticket_number" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[14%] cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Type billet <SortIcon k="ticket_type_id" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[7%] hidden md:table-cell cursor-pointer" onClick={() => toggleSort('filiere')}>Filière</th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[12%] hidden lg:table-cell">Vendeur</th>
-                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] hidden sm:table-cell">Payé (F)</th>
-                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2 w-[10%] cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Reste (F) <SortIcon k="remaining_balance" /></th>
-                <th className="text-left text-xs font-medium text-muted-foreground px-4 py-2 w-[9%] hidden md:table-cell">Table</th>
-                <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2 w-[9%]">Statut</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {paginatedGuests.map((guest) => {
-                const seat = seats.find(s => s.sale_id === guest.id);
-                const table = seat ? tables.find(t => t.id === seat.table_id) : null;
-                const contextItems = isAdmin ? [
-                  { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingGuest(guest); setEditName(guest.buyer_name || ''); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditTicketTypeId(guest.ticket_type_id || ''); setEditSellerId(guest.seller_id || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditBasePrice(String(guest.base_price ?? '')); setEditDiscountAmount(String(guest.discount_amount ?? '')); setEditFinalPrice(String(guest.final_price ?? '')); setEditDiscountSource(guest.discount_source || ''); setEditNotes(guest.notes || ''); } },
-                  { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDelete(guest.id) }
-                ] : [];
-                return (
-                  <ContextMenu key={guest.id} items={contextItems}>
-                  <tr
-                    className="hover:bg-muted/40 transition-colors cursor-pointer h-12"
-                    onClick={() => openGuest(guest)}
-                  >
-                    <td className="px-4 py-0 font-medium text-sm">
-                      <div className="flex items-center gap-2 h-12">
-                        <span className="truncate">{guest.buyer_name}</span>
-                        {guest.buyer_phone && isValidBeninNumber(guest.buyer_phone) ? (
-                          <a href={`https://wa.me/${toE164(guest.buyer_phone)}`} target="_blank" rel="noreferrer"
-                            className="text-green-500 hover:text-green-400 shrink-0"
-                            title={formatForDisplay(guest.buyer_phone)}
-                            onClick={e => e.stopPropagation()}>📱</a>
-                        ) : guest.buyer_phone ? (
-                          <span className="text-red-400 text-xs shrink-0" title="Numéro invalide">📱</span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-4 py-0 text-xs text-muted-foreground hidden sm:table-cell">{guest.ticket_number || '—'}</td>
-                    <td className="px-4 py-0 text-xs text-foreground"><span className="truncate block">{formatTicketType(guest.ticket_type_id)}</span></td>
-                    <td className="px-4 py-0 text-xs hidden md:table-cell">
-                      {guest.filiere || guest.annee
-                        ? <span className="text-foreground truncate block">{(guest.filiere || '') + (guest.annee || '')}</span>
-                        : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-4 py-0 text-xs text-muted-foreground hidden lg:table-cell"><span className="truncate block">{guest.seller?.full_name || guest.seller?.email || '—'}</span></td>
-                    <td className="px-4 py-0 text-xs text-green-500 hidden sm:table-cell text-right tabular-nums whitespace-nowrap">{guest.total_paid?.toLocaleString()} F</td>
-                    <td className={`px-4 py-0 text-xs text-right tabular-nums whitespace-nowrap font-medium ${guest.remaining_balance > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>{guest.remaining_balance?.toLocaleString()} F</td>
-                    <td className="px-4 py-0 text-xs text-muted-foreground hidden md:table-cell"><span className="truncate block">{table ? `${table.name}${seat ? ` #${seat.seat_number}` : ''}` : '—'}</span></td>
-                    <td className="px-4 py-0 text-center">
-                      {guest.remaining_balance === 0
-                        ? <span className="text-[10px] font-medium text-green-500">✓ Soldé</span>
-                        : <span className="text-[10px] font-medium text-muted-foreground">Partiel</span>
-                      }
+      <Card className="border-border bg-card">
+        <CardContent className="space-y-5 p-5">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="relative min-w-[240px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Nom, téléphone, ticket, vendeur, table..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(0); }}
+              />
+            </div>
+
+            <select
+              value={filterTicket}
+              onChange={(e) => { setFilterTicket(e.target.value); setPage(0); }}
+              className="h-8 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+            >
+              <option value="">Tous les tickets</option>
+              <option value="gold_interne">Gold Interne</option>
+              <option value="platinum_interne">Platinum Interne</option>
+              <option value="diamond_interne">Diamond Interne</option>
+              <option value="gold_externe">Gold Externe</option>
+              <option value="diamond_externe">Diamond Externe</option>
+              <option value="royal">Royal</option>
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
+              className="h-8 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="solde">Soldé</option>
+              <option value="partiel">Partiel</option>
+            </select>
+
+            <select
+              value={filterSeller}
+              onChange={(e) => { setFilterSeller(e.target.value); setPage(0); }}
+              className="h-8 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+            >
+              <option value="">Tous les vendeurs</option>
+              {sellers.map((s: any) => <option key={s.email} value={s.email}>{s.full_name || s.email}</option>)}
+            </select>
+
+            <input
+              type="text"
+              placeholder="Filière"
+              value={filterFiliere}
+              onChange={(e) => { setFilterFiliere(e.target.value.toUpperCase()); setPage(0); }}
+              className="h-8 w-28 rounded-lg border border-border bg-background px-3 text-sm uppercase text-foreground placeholder:text-muted-foreground"
+            />
+
+            <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
+              Réinitialiser
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <p>
+              {filteredGuests.length} résultat(s) sur {summaryStats.total} invité(s)
+            </p>
+            <p>
+              Trié par <span className="font-medium text-foreground">{sortKey}</span> · {sortDir === 'asc' ? 'croissant' : 'décroissant'}
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="min-w-[1320px] w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-card">
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Contact</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_number')}>Ticket <SortIcon k="ticket_number" /></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Billet <SortIcon k="ticket_type_id" /></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Vendeur</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Paiement <SortIcon k="remaining_balance" /></th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Placement</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Statuts</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-card">
+                {loading ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                      Chargement de la liste des invités...
                     </td>
                   </tr>
-                  </ContextMenu>
-                );
-              })}
-              {filteredGuests.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="text-center py-10 text-muted-foreground">Aucun invité trouvé.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                ) : null}
+
+                {!loading && paginatedGuests.map((guest) => {
+                  const contextItems = isAdmin ? [
+                    { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingGuest(guest); setEditName(guest.buyer_name || ''); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditTicketTypeId(guest.ticket_type_id || ''); setEditSellerId(guest.seller_id || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditBasePrice(String(guest.base_price ?? '')); setEditDiscountAmount(String(guest.discount_amount ?? '')); setEditFinalPrice(String(guest.final_price ?? '')); setEditDiscountSource(guest.discount_source || ''); setEditNotes(guest.notes || ''); } },
+                    { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDelete(guest.id) }
+                  ] : [];
+
+                  return (
+                    <React.Fragment key={guest.id}>
+                      <ContextMenu items={contextItems}>
+                      <tr className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => openGuest(guest)}>
+                        <td className="px-4 py-3 font-medium text-foreground">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{guest.buyer_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          <div className="flex flex-col gap-1">
+                            <span className="truncate">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</span>
+                            {guest.buyer_phone ? (
+                              guest.phoneValid ? (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-green-400">
+                                  <Phone className="h-3 w-3" /> WhatsApp ok
+                                </span>
+                              ) : (
+                                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-400">
+                                  <CircleAlert className="h-3 w-3" /> Numéro invalide
+                                </span>
+                              )
+                            ) : (
+                              <span className="inline-flex w-fit items-center gap-1 rounded-full border border-zinc-500/20 bg-zinc-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                                <Phone className="h-3 w-3" /> Non renseigné
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{guest.ticket_number || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-foreground">{formatTicketType(guest.ticket_type_id)}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {guest.filiere || guest.annee
+                            ? <span className="truncate block text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          <span className="truncate block">{guest.seller?.full_name || guest.seller?.email || '—'}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm tabular-nums">
+                          <div className="ml-auto flex w-fit flex-col items-end gap-1">
+                            <span className={`font-semibold ${guest.remaining_balance > 0 ? 'text-amber-400' : 'text-green-500'}`}>
+                              {guest.remaining_balance?.toLocaleString()} F restant
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {guest.total_paid?.toLocaleString()} F / {guest.final_price?.toLocaleString()} F
+                            </span>
+                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={`h-full rounded-full ${guest.remaining_balance > 0 ? 'bg-amber-500' : 'bg-green-500'}`}
+                                style={{ width: `${guest.final_price ? Math.min(100, Math.round((guest.total_paid / guest.final_price) * 100)) : 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          <div className="flex flex-col gap-1">
+                            <span className="truncate font-medium text-foreground">{guest.table ? `${guest.table.name}${guest.seat ? ` #${guest.seat.seat_number}` : ''}` : '—'}</span>
+                            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.table ? 'border border-blue-500/20 bg-blue-500/10 text-blue-400' : 'border border-zinc-500/20 bg-zinc-500/10 text-zinc-400'}`}>
+                              <Armchair className="h-3 w-3" /> {guest.table ? 'Placé' : 'À placer'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.remaining_balance === 0 ? 'border border-green-500/20 bg-green-500/10 text-green-400' : 'border border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
+                              <BadgeCheck className="h-3 w-3" /> {guest.remaining_balance === 0 ? 'Soldé' : 'Partiel'}
+                            </span>
+                            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.phoneValid ? 'border border-cyan-500/20 bg-cyan-500/10 text-cyan-400' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
+                              <Phone className="h-3 w-3" /> {guest.phoneValid ? 'WhatsApp' : 'Téléphone'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button type="button" variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); openGuest(guest); }} title="Voir le détail">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {guest.phoneValid ? (
+                              <Button type="button" variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${toE164(guest.buyer_phone)}`, '_blank', 'noreferrer'); }} title="Ouvrir WhatsApp">
+                                <ExternalLink className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {isAdmin ? (
+                              <Button type="button" variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); setEditingGuest(guest); setEditName(guest.buyer_name || ''); setEditPhone(guest.buyer_phone || ''); setEditTicketNumber(guest.ticket_number || ''); setEditTicketTypeId(guest.ticket_type_id || ''); setEditSellerId(guest.seller_id || ''); setEditFiliere(guest.filiere || ''); setEditAnnee(guest.annee || ''); setEditBasePrice(String(guest.base_price ?? '')); setEditDiscountAmount(String(guest.discount_amount ?? '')); setEditFinalPrice(String(guest.final_price ?? '')); setEditDiscountSource(guest.discount_source || ''); setEditNotes(guest.notes || ''); }} title="Modifier">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                      </ContextMenu>
+                    </React.Fragment>
+                  );
+                })}
+
+                {!loading && filteredGuests.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                      Aucun invité trouvé avec ces filtres.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
+
           {filteredGuests.length > PAGE_SIZE && (
-            <div className="flex justify-between items-center p-4 text-sm text-muted-foreground border-t border-border">
-              <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded bg-muted disabled:opacity-30 hover:bg-muted/80">← Précédent</button>
-              <span>{page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredGuests.length)} sur {filteredGuests.length}</span>
-              <button disabled={(page + 1) * PAGE_SIZE >= filteredGuests.length} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded bg-muted disabled:opacity-30 hover:bg-muted/80">Suivant →</button>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-sm text-muted-foreground">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+              >
+                ← Précédent
+              </Button>
+              <span>
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredGuests.length)} sur {filteredGuests.length}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={(page + 1) * PAGE_SIZE >= filteredGuests.length}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Suivant →
+              </Button>
             </div>
           )}
         </CardContent>
@@ -400,7 +625,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                 {selectedGuest.buyer_phone && (
                   <div className="bg-muted rounded-lg p-3 col-span-2">
                     <p className="text-muted-foreground text-xs mb-1">WhatsApp</p>
-                    {isValidBeninNumber(selectedGuest.buyer_phone) ? (
+                    {isValidPhoneNumber(selectedGuest.buyer_phone) ? (
                       <a href={`https://wa.me/${toE164(selectedGuest.buyer_phone)}`} target="_blank" rel="noreferrer"
                         className="font-bold text-green-500 hover:underline flex items-center gap-1">
                         📱 {formatForDisplay(selectedGuest.buyer_phone)}

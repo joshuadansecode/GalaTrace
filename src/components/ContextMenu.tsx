@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react';
 
 interface ContextMenuItem {
   label: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   danger?: boolean;
   onClick: () => void;
 }
 
 interface Props {
   items: ContextMenuItem[];
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export default function ContextMenu({ items, children }: Props) {
@@ -29,12 +29,12 @@ export default function ContextMenu({ items, children }: Props) {
     setVisible(true);
   }
 
-  function onContextMenu(e: React.MouseEvent) {
+  function onContextMenu(e: MouseEvent) {
     e.preventDefault();
     show(e.clientX, e.clientY);
   }
 
-  function onTouchStart(e: React.TouchEvent) {
+  function onTouchStart(e: TouchEvent) {
     const touch = e.touches[0];
     longPressTimer.current = setTimeout(() => {
       show(touch.clientX, touch.clientY);
