@@ -337,7 +337,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="min-w-[1320px] w-full text-sm">
+            <table className="min-w-[1120px] w-full text-sm">
               <thead className="sticky top-0 z-10 bg-card">
                 <tr className="border-b border-border bg-muted/30">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
@@ -348,14 +348,13 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Vendeur</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Paiement <SortIcon k="remaining_balance" /></th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Placement</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Statuts</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-card">
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                       Chargement de la liste des invités...
                     </td>
                   </tr>
@@ -376,26 +375,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                             <span className="truncate">{guest.buyer_name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
-                          <div className="flex flex-col gap-1">
-                            <span className="truncate">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</span>
-                            {guest.buyer_phone ? (
-                              guest.phoneValid ? (
-                                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-green-400">
-                                  <Phone className="h-3 w-3" /> WhatsApp ok
-                                </span>
-                              ) : (
-                                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-400">
-                                  <CircleAlert className="h-3 w-3" /> Numéro invalide
-                                </span>
-                              )
-                            ) : (
-                              <span className="inline-flex w-fit items-center gap-1 rounded-full border border-zinc-500/20 bg-zinc-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                                <Phone className="h-3 w-3" /> Non renseigné
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{guest.ticket_number || '—'}</td>
                         <td className="px-4 py-3 text-sm text-foreground">{formatTicketType(guest.ticket_type_id)}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
@@ -408,37 +388,19 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                         </td>
                         <td className="px-4 py-3 text-right text-sm tabular-nums">
                           <div className="ml-auto flex w-fit flex-col items-end gap-1">
-                            <span className={`font-semibold ${guest.remaining_balance > 0 ? 'text-amber-400' : 'text-green-500'}`}>
+                            <span className={`font-semibold ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
                               {guest.remaining_balance?.toLocaleString()} F restant
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {guest.total_paid?.toLocaleString()} F / {guest.final_price?.toLocaleString()} F
                             </span>
-                            <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className={`h-full rounded-full ${guest.remaining_balance > 0 ? 'bg-amber-500' : 'bg-green-500'}`}
-                                style={{ width: `${guest.final_price ? Math.min(100, Math.round((guest.total_paid / guest.final_price) * 100)) : 0}%` }}
-                              />
-                            </div>
+                            <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.remaining_balance === 0 ? 'border border-green-500/20 bg-green-500/10 text-green-400' : 'border border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
+                              {guest.remaining_balance === 0 ? 'Soldé' : 'Partiel'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">
-                          <div className="flex flex-col gap-1">
-                            <span className="truncate font-medium text-foreground">{guest.table ? `${guest.table.name}${guest.seat ? ` #${guest.seat.seat_number}` : ''}` : '—'}</span>
-                            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.table ? 'border border-blue-500/20 bg-blue-500/10 text-blue-400' : 'border border-zinc-500/20 bg-zinc-500/10 text-zinc-400'}`}>
-                              <Armchair className="h-3 w-3" /> {guest.table ? 'Placé' : 'À placer'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex flex-col gap-1">
-                            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.remaining_balance === 0 ? 'border border-green-500/20 bg-green-500/10 text-green-400' : 'border border-amber-500/20 bg-amber-500/10 text-amber-400'}`}>
-                              <BadgeCheck className="h-3 w-3" /> {guest.remaining_balance === 0 ? 'Soldé' : 'Partiel'}
-                            </span>
-                            <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${guest.phoneValid ? 'border border-cyan-500/20 bg-cyan-500/10 text-cyan-400' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
-                              <Phone className="h-3 w-3" /> {guest.phoneValid ? 'WhatsApp' : 'Téléphone'}
-                            </span>
-                          </div>
+                          <span className="truncate block text-foreground">{guest.table ? `${guest.table.name}${guest.seat ? ` #${guest.seat.seat_number}` : ''}` : '—'}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
@@ -465,7 +427,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
 
                 {!loading && filteredGuests.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                       Aucun invité trouvé avec ces filtres.
                     </td>
                   </tr>
