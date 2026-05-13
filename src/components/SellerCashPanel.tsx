@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { notify, notifyRole } from '../lib/notify';
+import { ArrowUpRight, HandCoins, Wallet, AlertTriangle, BadgeDollarSign } from 'lucide-react';
 
 interface Props {
   sellerId: string;
@@ -119,21 +120,39 @@ export default function SellerCashPanel({ sellerId, sellerName, canRecord, onVer
 
       {/* Flux financier */}
       <div className="space-y-2">
-        <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-          <span className="text-sm text-zinc-300">Total encaissé</span>
-          <span className="font-bold text-green-500">{stats.totalCollected.toLocaleString()} F</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700/70 bg-zinc-900 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          <span className="inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-green-400"><span className="h-2 w-2 rounded-full bg-green-500" /> Encaissé</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-blue-400"><span className="h-2 w-2 rounded-full bg-blue-500" /> Versé TG</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-amber-400"><span className="h-2 w-2 rounded-full bg-amber-500" /> Gardé en main</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-red-400"><span className="h-2 w-2 rounded-full bg-red-500" /> À collecter</span>
         </div>
-        <div className="flex justify-between items-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <span className="text-sm text-zinc-300">Total versé à la TG</span>
+        <div className="flex justify-between items-center rounded-lg border border-green-500/20 bg-green-500/10 px-4 py-3">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-green-300">Total encaissé</span>
+            <p className="text-[11px] text-green-200/70">Somme déjà reçue sur les ventes</p>
+          </div>
+          <span className="font-bold text-green-400">{stats.totalCollected.toLocaleString()} F</span>
+        </div>
+        <div className="flex justify-between items-center rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-3">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-blue-300">Total versé à la TG</span>
+            <p className="text-[11px] text-blue-200/70">Montants déjà reversés</p>
+          </div>
           <span className="font-bold text-blue-400">{stats.totalVersed.toLocaleString()} F</span>
         </div>
-        <div className="flex justify-between items-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <span className="text-sm font-bold text-zinc-200">Gardé en main</span>
-          <span className="font-bold text-amber-500">{stats.keptInHand.toLocaleString()} F</span>
+        <div className="flex justify-between items-center rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">Gardé en main</span>
+            <p className="text-[11px] text-amber-200/70">Montant encore en caisse</p>
+          </div>
+          <span className="font-bold text-amber-400">{stats.keptInHand.toLocaleString()} F</span>
         </div>
-        <div className="flex justify-between items-center p-3 rounded-lg bg-zinc-800 border border-zinc-700">
-          <span className="text-sm text-zinc-400">Non encore collecté</span>
-          <span className="font-bold text-zinc-400">{stats.notYetCollected.toLocaleString()} F</span>
+        <div className="flex justify-between items-center rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wider text-red-300">Non encore collecté</span>
+            <p className="text-[11px] text-red-200/70">Montant prioritaire à récupérer</p>
+          </div>
+          <span className="font-bold text-red-400">{stats.notYetCollected.toLocaleString()} F</span>
         </div>
       </div>
 
@@ -145,7 +164,7 @@ export default function SellerCashPanel({ sellerId, sellerName, canRecord, onVer
               type="number" min={1} value={amount || ''}
               onChange={(e) => setAmount(Number(e.target.value))}
               placeholder="Montant reçu..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+              className="w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
             />
           </div>
           <button type="submit" disabled={saving || amount <= 0}

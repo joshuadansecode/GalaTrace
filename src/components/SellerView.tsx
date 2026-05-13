@@ -33,6 +33,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [filiere, setFiliere] = useState('');
   const [annee, setAnnee] = useState('');
   const [quickMode, setQuickMode] = useState(false);
+  const fieldClass = 'w-full rounded-lg border border-zinc-700/80 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-500 shadow-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/30';
 
   // Modal state
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<Sale | null>(null);
@@ -98,6 +99,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
       remaining: Math.max(0, quota - sold)
     };
   }).filter(q => q.quota > 0 || q.sold > 0); // Show if they have quota OR have sold some
+  const visibleQuotaStats = quotaStats.filter(q => q.quota > 0 || q.sold > 0);
 
   const hasAnyQuota = quotas.length > 0;
   const selectedQuotaStat = quotaStats.find(q => q.id === selectedTicketType);
@@ -245,7 +247,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
       </Card>
       
       {/* Visual Dashboard - Quotas & Charts */}
-      {quotaStats.length > 0 && (
+      {visibleQuotaStats.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <Card className="lg:col-span-2 bg-zinc-900 border-zinc-800">
             <CardHeader>
@@ -256,25 +258,42 @@ export default function SellerView({ profile }: { profile: Profile }) {
               <CardDescription>Vos carnets attribués et vos ventes en cours.</CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Progression
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-green-400">
+                  <span className="h-2 w-2 rounded-full bg-green-500" /> Quota atteint
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-zinc-400">
+                  <span className="h-2 w-2 rounded-full bg-zinc-500" /> Vendu / quota
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-cyan-400">
+                  <span className="h-2 w-2 rounded-full bg-cyan-500" /> Pourcentage
+                </span>
+              </div>
               <div className="space-y-6">
-                {quotaStats.map((qs) => (
-                  <div key={qs.id} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-zinc-300">{qs.name}</span>
-                      <span className="text-zinc-400">
-                        <strong className="text-white">{qs.sold}</strong> / {qs.quota === 0 ? '∞' : qs.quota}
-                      </span>
-                    </div>
-                    {qs.quota > 0 && (
-                      <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all duration-500 ${qs.sold >= qs.quota ? 'bg-red-500' : 'bg-amber-500'}`}
-                          style={{ width: `${Math.min(100, (qs.sold / qs.quota) * 100)}%` }}
+                {visibleQuotaStats.map((qs) => {
+                  const percent = qs.quota > 0 ? Math.min(100, Math.round((qs.sold / qs.quota) * 100)) : 0;
+                  const barColor = qs.sold >= qs.quota ? 'bg-green-500' : 'bg-amber-500';
+
+                  return (
+                    <div key={qs.id} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate font-medium text-zinc-200">{qs.name}</span>
+                        <span className="shrink-0 rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-300">
+                          <strong className="text-white">{qs.sold}</strong> / {qs.quota} · {percent}%
+                        </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+                        <div
+                          className={`h-full transition-all duration-500 ${barColor}`}
+                          style={{ width: `${percent}%` }}
                         />
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -335,17 +354,27 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
               />
             </div>
-            <Table>
+            <Table className="table-fixed min-w-[1180px]">
+              <colgroup>
+                <col className="w-[18%]" />
+                <col className="w-[8%]" />
+                <col className="w-[12%]" />
+                <col className="w-[16%]" />
+                <col className="w-[12%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
+                <col className="w-[8%]" />
+              </colgroup>
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-400">Acheteur</TableHead>
-                  <TableHead className="text-zinc-400">N°</TableHead>
-                  <TableHead className="text-zinc-400">Filière</TableHead>
-                  <TableHead className="text-zinc-400">Ticket</TableHead>
-                  <TableHead className="text-zinc-400">Prix Final</TableHead>
-                  <TableHead className="text-zinc-400">Payé</TableHead>
-                  <TableHead className="text-zinc-400">Reste</TableHead>
-                  <TableHead className="text-zinc-400 text-right">Action</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Acheteur</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">N°</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Filière</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Ticket</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Prix Final</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Payé</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Reste</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400 text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -363,41 +392,41 @@ export default function SellerView({ profile }: { profile: Profile }) {
                       { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteSale(s.id) }
                     ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {s.buyer_name}
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle font-medium">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 truncate">{s.buyer_name}</span>
                         {(s as any).buyer_phone && (
                           <a href={`https://wa.me/${(s as any).buyer_phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                            className="text-green-500 hover:text-green-400" title={(s as any).buyer_phone}>
+                            className="shrink-0 text-green-500 hover:text-green-400" title={(s as any).buyer_phone}>
                             📱
                           </a>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-zinc-500 text-xs">{(s as any).ticket_number || '—'}</TableCell>
-                    <TableCell className="text-zinc-400 text-xs">
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle text-zinc-500 text-xs">{(s as any).ticket_number || '—'}</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle text-zinc-400 text-xs">
                       {(s as any).filiere ? <span className="font-medium text-white">{(s as any).filiere}</span> : '—'}
                       {(s as any).annee ? <span className="text-zinc-500"> A{(s as any).annee}</span> : ''}
                     </TableCell>
-                    <TableCell className="text-zinc-400">{s.ticket_type_id}</TableCell>
-                    <TableCell>{s.final_price.toLocaleString()} F</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle text-zinc-400">{s.ticket_type_id}</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle">{s.final_price.toLocaleString()} F</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle">
                       <div className="flex items-center gap-2">
-                        <span className={s.remaining_balance! === 0 ? "text-green-500 font-bold" : "text-zinc-400"}>
+                        <span className={s.remaining_balance! === 0 ? 'font-bold text-green-400' : 'text-zinc-300'}>
                           {s.total_paid?.toLocaleString()} F
                         </span>
                         {s.remaining_balance! === 0 && (
-                          <span className="bg-green-500/10 text-green-500 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Payé</span>
+                          <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-400">Payé</span>
                         )}
                         {s.remaining_balance! > 0 && s.total_paid! > 0 && (
-                          <span className="bg-amber-500/10 text-amber-500 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Partiel</span>
+                          <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">Partiel</span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className={s.remaining_balance! > 0 ? 'text-amber-500 font-bold' : 'text-zinc-600'}>
+                    <TableCell className={s.remaining_balance! > 0 ? 'whitespace-nowrap overflow-hidden py-4 align-middle font-bold text-amber-400' : 'whitespace-nowrap overflow-hidden py-4 align-middle text-zinc-600'}>
                       {s.remaining_balance?.toLocaleString()} F
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle text-right">
                       {s.remaining_balance! > 0 && (
                         <Button size="sm" variant="outline"
                           className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
@@ -455,7 +484,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Type de Ticket (mémorisé)</label>
                   <Select value={selectedTicketType} onValueChange={setSelectedTicketType}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                    <SelectTrigger className={fieldClass}><SelectValue placeholder="Choisir..." /></SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
                       {ticketTypes.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.price.toLocaleString()} F)</SelectItem>)}
                     </SelectContent>
@@ -487,13 +516,13 @@ export default function SellerView({ profile }: { profile: Profile }) {
                     fetchData();
                   } catch { toast.error('Erreur'); }
                 }} className="space-y-3">
-                  <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required placeholder="Nom acheteur *" className="bg-zinc-800 border-zinc-700" autoFocus />
-                  <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="WhatsApp (optionnel)" className="bg-zinc-800 border-zinc-700" />
-                  <Input value={ticketNumber} onChange={(e) => setTicketNumber(e.target.value)} placeholder="N° ticket (optionnel)" className="bg-zinc-800 border-zinc-700" />
+                  <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required placeholder="Nom acheteur *" className={fieldClass} autoFocus />
+                  <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="WhatsApp (optionnel)" className={fieldClass} />
+                  <Input value={ticketNumber} onChange={(e) => setTicketNumber(e.target.value)} placeholder="N° ticket (optionnel)" className={fieldClass} />
                   <div className="grid grid-cols-2 gap-2">
-                    <Input value={filiere} onChange={(e) => setFiliere(e.target.value.toUpperCase())} placeholder="Filière (ex: HTR)" className="bg-zinc-800 border-zinc-700" />
+                    <Input value={filiere} onChange={(e) => setFiliere(e.target.value.toUpperCase())} placeholder="Filière (ex: HTR)" className={fieldClass} />
                     <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                      className={fieldClass}>
                       <option value="">Année</option>
                       <option value="1">1ère année</option>
                       <option value="2">2ème année</option>
@@ -501,7 +530,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
                       <option value="Externe">Externe</option>
                     </select>
                   </div>
-                  <Input type="number" value={initialPayment || ''} onChange={(e) => setInitialPayment(Number(e.target.value))} placeholder="Acompte (optionnel)" className="bg-zinc-800 border-zinc-700" />
+                  <Input type="number" value={initialPayment || ''} onChange={(e) => setInitialPayment(Number(e.target.value))} placeholder="Acompte (optionnel)" className={fieldClass} />
                   <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={!selectedTicketType || !buyerName}>
                     ✓ Enregistrer & suivant
                   </Button>
@@ -514,22 +543,22 @@ export default function SellerView({ profile }: { profile: Profile }) {
                 <Input 
                   value={ticketNumber}
                   onChange={(e) => setTicketNumber(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700" 
+                  className={fieldClass}
                   placeholder="Ex: T-001"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Nom de l'acheteur</label>
-                <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+                <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} required className={fieldClass} />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">WhatsApp acheteur</label>
-                <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="+225 07 00 00 00 00" />
+                <Input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} className={fieldClass} placeholder="+225 07 00 00 00 00" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Type de Ticket</label>
                 <Select value={selectedTicketType} onValueChange={setSelectedTicketType}>
-                  <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                  <SelectTrigger className={fieldClass}>
                     <SelectValue placeholder="Sélectionner..." />
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -542,17 +571,17 @@ export default function SellerView({ profile }: { profile: Profile }) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Réduction</label>
-                  <Input 
-                    type="number"
-                    value={discountAmount}
-                    onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                    className="bg-zinc-800 border-zinc-700" 
-                  />
+                    <Input 
+                      type="number"
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                      className={fieldClass} 
+                    />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Source</label>
                   <Select value={discountSource} onValueChange={setDiscountSource}>
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700">
+                    <SelectTrigger className={fieldClass}>
                       <SelectValue placeholder="---" />
                     </SelectTrigger>
                     <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -564,26 +593,26 @@ export default function SellerView({ profile }: { profile: Profile }) {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Acompte Initial (F)</label>
-                <Input 
-                  type="number"
-                  value={initialPayment}
-                  onChange={(e) => setInitialPayment(Number(e.target.value))}
-                  className="bg-zinc-800 border-zinc-700" 
-                />
+                  <Input 
+                    type="number"
+                    value={initialPayment}
+                    onChange={(e) => setInitialPayment(Number(e.target.value))}
+                    className={fieldClass} 
+                  />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-400 uppercase">Notes (Placement)</label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="Ex: Veut être à la table de..." />
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} className={fieldClass} placeholder="Ex: Veut être à la table de..." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Filière</label>
-                  <Input value={filiere} onChange={(e) => setFiliere(e.target.value.toUpperCase())} className="bg-zinc-800 border-zinc-700" placeholder="Ex: HTR" />
+                  <Input value={filiere} onChange={(e) => setFiliere(e.target.value.toUpperCase())} className={fieldClass} placeholder="Ex: HTR" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Année</label>
                   <select value={annee} onChange={(e) => setAnnee(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white">
+                    className={fieldClass}>
                     <option value="">---</option>
                     <option value="1">1ère</option>
                     <option value="2">2ème</option>
@@ -626,19 +655,19 @@ export default function SellerView({ profile }: { profile: Profile }) {
               <form onSubmit={handleEditSale} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Nom acheteur</label>
-                  <Input value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} required className="bg-zinc-800 border-zinc-700" />
+                <Input value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} required className={fieldClass} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">WhatsApp</label>
-                  <Input value={editBuyerPhone} onChange={(e) => setEditBuyerPhone(e.target.value)} className="bg-zinc-800 border-zinc-700" placeholder="+225 07 00 00 00 00" />
+                <Input value={editBuyerPhone} onChange={(e) => setEditBuyerPhone(e.target.value)} className={fieldClass} placeholder="+225 07 00 00 00 00" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">N° Ticket</label>
-                  <Input value={editTicketNumber} onChange={(e) => setEditTicketNumber(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                <Input value={editTicketNumber} onChange={(e) => setEditTicketNumber(e.target.value)} className={fieldClass} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Notes</label>
-                  <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="bg-zinc-800 border-zinc-700" />
+                <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={fieldClass} />
                 </div>
                 <div className="flex gap-3">
                   <Button type="button" variant="outline" className="flex-1 border-zinc-700" onClick={() => setEditingSale(null)}>Annuler</Button>
@@ -688,20 +717,20 @@ export default function SellerView({ profile }: { profile: Profile }) {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Montant encaissé aujourd'hui</label>
-                  <div className="relative">
-                    <Input 
-                      type="number"
-                      max={selectedSaleForPayment.remaining_balance}
-                      min={1}
-                      value={paymentAmount || ''}
-                      onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                      className="bg-zinc-900 border-zinc-700 font-bold text-xl h-14 pl-4 pr-12 focus-visible:ring-amber-500" 
-                      autoFocus
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-medium">FCFA</div>
-                  </div>
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Montant encaissé aujourd'hui</label>
+                <div className="relative">
+                  <Input 
+                    type="number"
+                    max={selectedSaleForPayment.remaining_balance}
+                    min={1}
+                    value={paymentAmount || ''}
+                    onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                    className="bg-zinc-950 border-zinc-700/80 font-bold text-xl h-14 pl-4 pr-12 shadow-sm focus-visible:ring-amber-500" 
+                    autoFocus
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-medium">FCFA</div>
+                </div>
                 </div>
                 
                 <div className="flex gap-3 pt-2">
