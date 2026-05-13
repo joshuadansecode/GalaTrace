@@ -569,7 +569,9 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
     name,
     value: ticketPops[name]
   }));
-  const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444'];
+  const totalSoldTickets = pieData.reduce((acc, item) => acc + item.value, 0);
+  const topTicket = pieData[0]?.name || '—';
 
   return (
     <div className="space-y-8">
@@ -595,21 +597,24 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
       </Card>
 
       {/* Section Caisse Vendeurs */}
-      <Card className="bg-zinc-900 border-zinc-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ArrowUpRight className="w-5 h-5 text-amber-500" />
-            Caisse des Vendeurs
-          </CardTitle>
-          <CardDescription>Situation financière de chaque vendeur.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Card className="border-zinc-800 bg-zinc-900/90 shadow-sm shadow-black/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ArrowUpRight className="w-5 h-5 text-amber-500" />
+                Caisse des Vendeurs
+              </CardTitle>
+              <CardDescription>Situation financière de chaque vendeur.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {sellers.map((s: any) => (
               <button key={s.id} onClick={() => setSelectedSeller(s)}
-                className="text-left p-4 rounded-xl bg-zinc-800 border border-zinc-700 hover:border-amber-500/50 transition-all">
-                <p className="font-bold text-sm mb-1">{s.full_name || s.email}</p>
-                <p className="text-xs text-zinc-500 uppercase">{s.role}</p>
+                className="group text-left rounded-xl border border-zinc-800 bg-zinc-950/40 p-4 transition-all hover:border-amber-500/40 hover:bg-zinc-900">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80 transition-transform group-hover:scale-110" />
+                  <p className="min-w-0 flex-1 truncate font-semibold text-sm">{s.full_name || s.email}</p>
+                </div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">{s.role}</p>
               </button>
             ))}
           </div>
@@ -678,7 +683,7 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
             </CardContent>
           </Card>
 
-          <Card className="bg-zinc-900 border-zinc-800">
+          <Card className="border-zinc-800 bg-zinc-900/90 shadow-sm shadow-black/10">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-500" />
@@ -686,30 +691,51 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
               </CardTitle>
               <CardDescription>Billet le plus vendu globalement.</CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-center items-center h-[200px]">
+            <CardContent className="space-y-4">
               {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
-                      itemStyle={{ color: '#fff' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <>
+                  <div className="relative h-[240px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/60">
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-zinc-500">Total tickets vendus</p>
+                      <p className="mt-1 text-3xl font-bold text-white">{totalSoldTickets}</p>
+                      <p className="mt-1 text-xs text-zinc-400">Billet dominant : {topTicket}</p>
+                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={72}
+                          outerRadius={96}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="#18181b"
+                          strokeWidth={2}
+                          animationDuration={700}
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.35)' }}
+                          itemStyle={{ color: '#fff' }}
+                          labelStyle={{ color: '#a1a1aa' }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {pieData.slice(0, 4).map((entry, index) => (
+                      <span key={entry.name} className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950 px-3 py-1 text-[11px] text-zinc-300">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                        <span className="truncate max-w-32">{entry.name}</span>
+                        <span className="text-zinc-500">{entry.value}</span>
+                      </span>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p className="text-zinc-600 text-sm">Aucune vente enregistrée</p>
               )}
@@ -724,32 +750,32 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
             <CardTitle>Historique des Flux</CardTitle>
             <CardDescription>Dépôts et réceptions de fonds.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
+            <CardContent>
+            <Table className="table-fixed min-w-[920px]">
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-400">Date</TableHead>
-                  <TableHead className="text-zinc-400">De / Vers</TableHead>
-                  <TableHead className="text-zinc-400">Montant</TableHead>
-                  <TableHead className="text-zinc-400">Statut</TableHead>
-                  <TableHead className="text-zinc-400 text-right">Action</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Date</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">De / Vers</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Montant</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Statut</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400 text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transfers.map((t: any) => (
                   <TableRow key={t.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                    <TableCell className="text-xs text-zinc-500">
+                    <TableCell className="whitespace-nowrap overflow-hidden text-xs text-zinc-500">
                       {new Date(t.created_at).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden">
                       {t.from_id === profile.id ? (
                         <span className="text-zinc-400">Vers: {t.to?.full_name || t.to?.email}</span>
                       ) : (
                         <span className="text-amber-500">De: {t.from?.full_name || t.from?.email}</span>
                       )}
                     </TableCell>
-                    <TableCell className="font-bold">{t.amount.toLocaleString()} F</TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden font-bold">{t.amount.toLocaleString()} F</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden">
                       {t.status === 'en_attente' ? (
                         <span className="flex items-center gap-1 text-amber-500 text-xs uppercase font-bold">
                           <Clock className="w-3 h-3" /> En attente
@@ -764,7 +790,7 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="whitespace-nowrap overflow-hidden text-right">
                       {t.to_id === profile.id && t.status === 'en_attente' && (
                         <div className="flex justify-end gap-2">
                           <Button 
@@ -794,7 +820,7 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
         </Card>
       </div>
 
-      <Card className="bg-zinc-900 border-zinc-800">
+          <Card className="border-zinc-800 bg-zinc-900/90 shadow-sm shadow-black/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5 text-amber-500" />
@@ -803,15 +829,15 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
           <CardDescription>Liste de l'ensemble des ventes ayant encore un reste à payer.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="text-zinc-400">Vendeur initial</TableHead>
-                <TableHead className="text-zinc-400">Acheteur</TableHead>
-                <TableHead className="text-zinc-400">Billet</TableHead>
-                <TableHead className="text-zinc-400">Reste à payer</TableHead>
-                <TableHead className="text-zinc-400 text-right">Action</TableHead>
-              </TableRow>
+            <Table className="table-fixed min-w-[960px]">
+              <TableHeader>
+                <TableRow className="border-zinc-800 hover:bg-transparent">
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Vendeur initial</TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Acheteur</TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Billet</TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Reste à payer</TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400 text-right">Action</TableHead>
+                </TableRow>
             </TableHeader>
             <TableBody>
               {unpaidSales.length === 0 ? (
@@ -821,11 +847,11 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
               ) : (
                 unpaidSales.map((s) => (
                   <TableRow key={s.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                    <TableCell className="font-medium text-zinc-400">{s.seller?.full_name || s.seller?.email || 'Inconnu'}</TableCell>
-                    <TableCell className="font-medium">{s.buyer_name}</TableCell>
-                    <TableCell className="text-zinc-400">{s.ticket_type_id}</TableCell>
-                    <TableCell className="text-amber-500 font-bold">{s.remaining_balance?.toLocaleString()} F</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="whitespace-nowrap overflow-hidden font-medium text-zinc-400">{s.seller?.full_name || s.seller?.email || 'Inconnu'}</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden font-medium">{s.buyer_name}</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden text-zinc-400">{s.ticket_type_id}</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden font-bold text-amber-400">{s.remaining_balance?.toLocaleString()} F</TableCell>
+                    <TableCell className="whitespace-nowrap overflow-hidden text-right">
                       <Button 
                         size="sm" 
                         variant="outline" 
@@ -859,20 +885,20 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
             </CardHeader>
             <CardContent>
               {/* Résumé */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div className="bg-zinc-800 rounded-xl p-3 text-center">
-                  <p className="text-xs text-zinc-500 mb-1">Total envoyé</p>
-                  <p className="font-bold text-amber-500">{tgTransfers.reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-1">Total envoyé</p>
+                  <p className="font-bold text-amber-400">{tgTransfers.reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
                 </div>
-                <div className="bg-zinc-800 rounded-xl p-3 text-center">
-                  <p className="text-xs text-zinc-500 mb-1">Validé</p>
-                  <p className="font-bold text-green-500">{tgTransfers.filter(t => t.status === 'valide').reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-1">Validé</p>
+                  <p className="font-bold text-green-400">{tgTransfers.filter(t => t.status === 'valide').reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
                 </div>
-                <div className="bg-zinc-800 rounded-xl p-3 text-center">
-                  <p className="text-xs text-zinc-500 mb-1">En attente</p>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3 text-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 mb-1">En attente</p>
                   <p className="font-bold text-amber-400">{tgTransfers.filter(t => t.status === 'en_attente').reduce((a, t) => a + t.amount, 0).toLocaleString()} F</p>
                 </div>
-              </div>
+                </div>
               {/* Liste */}
               <div className="space-y-2">
                 {tgTransfers.length === 0 ? (
@@ -940,17 +966,17 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
             <CardDescription>Liste de toutes les dépenses soumises à validation.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-               <TableHeader>
-                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                   <TableHead className="text-zinc-400">Titre</TableHead>
-                   <TableHead className="text-zinc-400">Bénéficiaire</TableHead>
-                   <TableHead className="text-zinc-400">Montant (F)</TableHead>
-                   <TableHead className="text-zinc-400">Statut paiement</TableHead>
-                   <TableHead className="text-zinc-400">Validation</TableHead>
-                   {canManageExpensePayment || profile.role === 'tresoriere_generale' ? <TableHead className="text-zinc-400 text-right">Actions</TableHead> : null}
-                 </TableRow>
-               </TableHeader>
+            <Table className="table-fixed min-w-[1040px]">
+                <TableHeader>
+                  <TableRow className="border-zinc-800 hover:bg-transparent">
+                    <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Titre</TableHead>
+                    <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Bénéficiaire</TableHead>
+                    <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Montant (F)</TableHead>
+                    <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Statut paiement</TableHead>
+                    <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Validation</TableHead>
+                    {canManageExpensePayment || profile.role === 'tresoriere_generale' ? <TableHead className="text-zinc-400 text-right">Actions</TableHead> : null}
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {expenses.length === 0 ? (
                   <TableRow className="border-zinc-800">
@@ -963,24 +989,24 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
                       ...(canDeleteExpense(exp) ? [{ label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteExpense(exp) }] : [])
                     ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
-                    <TableCell className="font-medium">{exp.title}</TableCell>
-                    <TableCell className="text-zinc-400">{exp.author}</TableCell>
-                    <TableCell className="font-bold text-red-400">{exp.amount.toLocaleString()} F</TableCell>
-                    <TableCell>
-                      <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${exp.payment_status === 'reglee' ? 'bg-green-500/10 text-green-500' : 'bg-zinc-700 text-zinc-400'}`}>
-                        {exp.payment_status === 'reglee' ? 'Réglée' : 'Non réglée'}
-                      </span>
-                      {exp.payment_status_pending && (
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                          Demande: {paymentStatusLabel(exp.payment_status_pending)}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {exp.validation_status === 'en_attente' && <span className="flex items-center gap-1 text-amber-500 text-xs font-bold uppercase"><Clock className="w-3 h-3" /> En attente</span>}
-                      {exp.validation_status === 'validee' && <span className="flex items-center gap-1 text-green-500 text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3" /> Validée</span>}
-                      {exp.validation_status === 'rejetee' && <span className="flex items-center gap-1 text-red-500 text-xs font-bold uppercase"><XCircle className="w-3 h-3" /> Rejetée</span>}
-                    </TableCell>
+                     <TableCell className="whitespace-nowrap overflow-hidden font-medium">{exp.title}</TableCell>
+                     <TableCell className="whitespace-nowrap overflow-hidden text-zinc-400">{exp.author}</TableCell>
+                     <TableCell className="whitespace-nowrap overflow-hidden font-bold text-red-400">{exp.amount.toLocaleString()} F</TableCell>
+                     <TableCell className="whitespace-nowrap overflow-hidden">
+                       <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${exp.payment_status === 'reglee' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-zinc-700 text-zinc-300 border border-zinc-600'}`}>
+                         {exp.payment_status === 'reglee' ? 'Réglée' : 'Non réglée'}
+                       </span>
+                       {exp.payment_status_pending && (
+                         <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                           Demande: {paymentStatusLabel(exp.payment_status_pending)}
+                         </p>
+                       )}
+                     </TableCell>
+                     <TableCell className="whitespace-nowrap overflow-hidden">
+                       {exp.validation_status === 'en_attente' && <span className="flex items-center gap-1 text-amber-400 text-xs font-bold uppercase"><Clock className="w-3 h-3" /> En attente</span>}
+                       {exp.validation_status === 'validee' && <span className="flex items-center gap-1 text-green-400 text-xs font-bold uppercase"><CheckCircle2 className="w-3 h-3" /> Validée</span>}
+                       {exp.validation_status === 'rejetee' && <span className="flex items-center gap-1 text-red-400 text-xs font-bold uppercase"><XCircle className="w-3 h-3" /> Rejetée</span>}
+                     </TableCell>
                     {(canManageExpensePayment || profile.role === 'tresoriere_generale') && (
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end gap-2">
