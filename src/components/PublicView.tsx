@@ -337,35 +337,35 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="min-w-[1280px] w-full table-fixed text-sm">
+            <table className="min-w-[1450px] w-full table-fixed text-sm">
               <colgroup>
-                <col className="w-[16%]" />
-                <col className="w-[13%]" />
-                <col className="w-[10%]" />
-                <col className="w-[12%]" />
-                <col className="w-[10%]" />
-                <col className="w-[14%]" />
-                <col className="w-[14%]" />
-                <col className="w-[11%]" />
-                <col className="w-[10%]" />
+                <col className="w-[220px]" />
+                <col className="w-[180px]" />
+                <col className="w-[120px]" />
+                <col className="w-[130px]" />
+                <col className="w-[120px]" />
+                <col className="w-[220px]" />
+                <col className="w-[180px]" />
+                <col className="w-[160px]" />
+                <col className="w-[120px]" />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-card">
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_number')}>Ticket <SortIcon k="ticket_number" /></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Billet <SortIcon k="ticket_type_id" /></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Vendeur</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Paiement <SortIcon k="remaining_balance" /></th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Placement</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">Contact</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_number')}>Ticket <SortIcon k="ticket_number" /></th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('ticket_type_id')}>Billet <SortIcon k="ticket_type_id" /></th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('filiere')}>Filière <SortIcon k="filiere" /></th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">Vendeur</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('remaining_balance')}>Paiement <SortIcon k="remaining_balance" /></th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">Placement</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-card">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={9} className="whitespace-nowrap px-4 py-12 text-center text-muted-foreground">
                       Chargement de la liste des invités...
                     </td>
                   </tr>
@@ -381,23 +381,23 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                     <React.Fragment key={guest.id}>
                       <ContextMenu items={contextItems}>
                       <tr className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => openGuest(guest)}>
-                        <td className="px-4 py-3 font-medium text-foreground">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate">{guest.buyer_name}</span>
+                        <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="min-w-0 truncate">{guest.buyer_name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{guest.ticket_number || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-foreground">{formatTicketType(guest.ticket_type_id)}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{guest.buyer_phone ? formatForDisplay(guest.buyer_phone) : '—'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">{guest.ticket_number || '—'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-foreground">{formatTicketType(guest.ticket_type_id)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                           {guest.filiere || guest.annee
                             ? <span className="truncate block text-foreground">{(guest.filiere || '') + (guest.annee || '')}</span>
                             : '—'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                           <span className="truncate block">{guest.seller?.full_name || guest.seller?.email || '—'}</span>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm tabular-nums">
+                        <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
                           <div className="ml-auto flex w-fit flex-col items-end gap-1">
                             <span className={`font-semibold ${guest.remaining_balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>
                               {guest.remaining_balance?.toLocaleString()} F restant
@@ -410,10 +410,10 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                           <span className="truncate block text-foreground">{guest.table ? `${guest.table.name}${guest.seat ? ` #${guest.seat.seat_number}` : ''}` : '—'}</span>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="whitespace-nowrap px-4 py-3 text-right">
                           <div className="flex justify-end gap-1">
                             <Button type="button" variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); openGuest(guest); }} title="Voir le détail">
                               <Eye className="h-4 w-4" />
@@ -438,7 +438,7 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
 
                 {!loading && filteredGuests.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={9} className="whitespace-nowrap px-4 py-12 text-center text-muted-foreground">
                       Aucun invité trouvé avec ces filtres.
                     </td>
                   </tr>
