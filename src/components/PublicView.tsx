@@ -206,8 +206,8 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
   };
 
   return (
-    <div className="space-y-8">
-      <header className="mx-auto max-w-4xl space-y-4 text-center">
+    <div className="w-full space-y-8">
+      <header className="space-y-4 text-left">
         <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
           <Users className="h-3.5 w-3.5" />
           Liste des invités

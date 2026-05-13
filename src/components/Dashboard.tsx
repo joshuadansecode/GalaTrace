@@ -333,7 +333,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
           </button>
           <NotificationBell userId={profile.id} />
         </div>
-        <div className="mx-auto max-w-6xl px-4 pb-10 lg:px-10 lg:pb-10">
+        <div className={activeTab === 'public' ? 'w-full px-4 pb-10 lg:px-6 lg:pb-10' : 'mx-auto max-w-6xl px-4 pb-10 lg:px-10 lg:pb-10'}>
           {renderContent()}
         </div>
       </main>
