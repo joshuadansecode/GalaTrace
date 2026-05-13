@@ -337,7 +337,18 @@ export default function PublicView({ profile }: { profile: Profile | null }) {
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="min-w-[1120px] w-full text-sm">
+            <table className="min-w-[1280px] w-full table-fixed text-sm">
+              <colgroup>
+                <col className="w-[16%]" />
+                <col className="w-[13%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
+                <col className="w-[11%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead className="sticky top-0 z-10 bg-card">
                 <tr className="border-b border-border bg-muted/30">
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground cursor-pointer" onClick={() => toggleSort('buyer_name')}>Nom <SortIcon k="buyer_name" /></th>
