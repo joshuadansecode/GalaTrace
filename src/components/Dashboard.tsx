@@ -15,7 +15,8 @@ import {
   Trophy,
   Activity,
   Sun,
-  Moon
+  Moon,
+  ScanLine
 } from 'lucide-react';
 import AdminView from './AdminView';
 import SellerView from './SellerView';
@@ -26,6 +27,7 @@ import ActivityFeed from './ActivityFeed';
 import ProfileModal from './ProfileModal';
 import NotificationBell from './NotificationBell';
 import Directory from './Directory';
+import TicketCheckInView from './TicketCheckInView';
 
 interface DashboardProps {
   profile: Profile | null;
@@ -133,6 +135,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
   const menuItems = [
     { id: 'overview', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale', 'direction', 'observateur'] },
     { id: 'sales', label: 'Ventes & Tickets', icon: Ticket, roles: ['admin', 'vendeur', 'comite', 'tresoriere', 'tresoriere_generale'] },
+    { id: 'checkin', label: 'Contrôle QR', icon: ScanLine, roles: ['admin', 'comite', 'tresoriere', 'tresoriere_generale', 'direction'] },
     { id: 'treasury', label: 'Trésorerie', icon: Wallet, roles: ['admin', 'tresoriere', 'tresoriere_generale', 'direction'] },
     { id: 'admin', label: 'Administration', icon: Users, roles: ['admin'] },
     { id: 'placement', label: 'Placement', icon: Armchair, roles: ['admin', 'direction'] },
@@ -151,6 +154,8 @@ export default function Dashboard({ profile, session }: DashboardProps) {
         return <SellerView profile={profile} />;
       case 'treasury':
         return <TreasurerView profile={profile} />;
+      case 'checkin':
+        return <TicketCheckInView />;
       case 'placement':
         return <PlacementView profile={profile} />;
       case 'public':
@@ -333,7 +338,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
           </button>
           <NotificationBell userId={profile.id} />
         </div>
-        <div className={activeTab === 'sales' ? 'w-full max-w-none px-4 pb-10 lg:px-6 lg:pb-10' : activeTab === 'public' ? 'w-full px-4 pb-10 lg:px-6 lg:pb-10' : 'mx-auto max-w-6xl px-4 pb-10 lg:px-10 lg:pb-10'}>
+        <div className={activeTab === 'sales' || activeTab === 'checkin' ? 'w-full max-w-none px-4 pb-10 lg:px-6 lg:pb-10' : activeTab === 'public' ? 'w-full px-4 pb-10 lg:px-6 lg:pb-10' : 'mx-auto max-w-6xl px-4 pb-10 lg:px-10 lg:pb-10'}>
           {renderContent()}
         </div>
       </main>

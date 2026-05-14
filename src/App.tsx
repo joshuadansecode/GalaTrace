@@ -4,12 +4,17 @@ import { Profile } from './types';
 import { Toaster } from 'sonner';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
+import PublicTicketQrPage from './components/PublicTicketQrPage';
 import { Loader2 } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { toast } from 'sonner';
 
 export default function App() {
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname.replace(/\/+$/, '') || '/' : '/';
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const isPublicTicketQrPage = currentPath === '/ticket-qr' || searchParams.get('page') === 'ticket-qr';
+
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +23,11 @@ export default function App() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
+    if (isPublicTicketQrPage) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) fetchProfile(session.user.id);
@@ -61,6 +71,15 @@ export default function App() {
     toast.success('Mot de passe mis à jour !');
     setIsPasswordRecovery(false);
     setNewPassword('');
+  }
+
+  if (isPublicTicketQrPage) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Toaster position="top-right" />
+        <PublicTicketQrPage />
+      </div>
+    );
   }
 
   if (loading) {
