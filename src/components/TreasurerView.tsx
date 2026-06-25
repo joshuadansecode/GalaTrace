@@ -13,6 +13,7 @@ import SellerCashPanel from './SellerCashPanel';
 import FinancialSummaryCards from './FinancialSummaryCards';
 import { notify, notifyRole } from '../lib/notify';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useSort, SortHeader } from '../lib/useSort';
 
 export default function TreasurerView({ profile }: { profile: Profile }) {
   const [transfers, setTransfers] = useState<CashTransfer[]>([]);
@@ -28,6 +29,37 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
   const [allSales, setAllSales] = useState<any[]>([]);
   const [selectedSaleForPayment, setSelectedSaleForPayment] = useState<any | null>(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
+
+  const { sorted: sortedUnpaid, sortKey: unpaidSortKey, sortDir: unpaidSortDir, toggle: toggleUnpaidSort } =
+    useSort<any>(unpaidSales, 'remaining_balance', 'desc');
+
+  // Waive modal (TG/Admin)
+  const [waivingSale, setWaivingSale] = useState<any | null>(null);
+  const [waiveReason, setWaiveReason] = useState('');
+  const [waiveSaving, setWaiveSaving] = useState(false);
+
+  async function handleWaiveSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!waivingSale || !waiveReason.trim()) return;
+    setWaiveSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('waive_sale_balance', {
+        p_sale_id: waivingSale.id,
+        p_reason:  waiveReason.trim(),
+      });
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || 'Erreur');
+        return;
+      }
+      const res = data as any;
+      toast.success(`${res.buyer_name} classé(e) comme soldé(e). Écart remis : ${res.gap?.toLocaleString()} F`);
+      setWaivingSale(null);
+      setWaiveReason('');
+      fetchData();
+    } finally {
+      setWaiveSaving(false);
+    }
+  }
 
   // Expenses
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -832,37 +864,50 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
             <Table className="table-fixed min-w-[960px]">
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Vendeur initial</TableHead>
-                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Acheteur</TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                  <SortHeader label="Vendeur" colKey="seller_id" currentKey={unpaidSortKey as string} currentDir={unpaidSortDir} onToggle={k => toggleUnpaidSort(k)} />
+                </TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                  <SortHeader label="Acheteur" colKey="buyer_name" currentKey={unpaidSortKey as string} currentDir={unpaidSortDir} onToggle={k => toggleUnpaidSort(k)} />
+                </TableHead>
                 <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Billet</TableHead>
-                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Reste à payer</TableHead>
+                <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                  <SortHeader label="Reste à payer" colKey="remaining_balance" currentKey={unpaidSortKey as string} currentDir={unpaidSortDir} onToggle={k => toggleUnpaidSort(k)} />
+                </TableHead>
                 <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400 text-right">Action</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-              {unpaidSales.length === 0 ? (
+              {sortedUnpaid.length === 0 ? (
                 <TableRow className="border-zinc-800">
                   <TableCell colSpan={5} className="text-center text-zinc-500 py-6">Aucun recouvrement en attente.</TableCell>
                 </TableRow>
               ) : (
-                unpaidSales.map((s) => (
+                sortedUnpaid.map((s) => (
                   <TableRow key={s.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                     <TableCell className="whitespace-nowrap overflow-hidden font-medium text-zinc-400">{s.seller?.full_name || s.seller?.email || 'Inconnu'}</TableCell>
                     <TableCell className="whitespace-nowrap overflow-hidden font-medium">{s.buyer_name}</TableCell>
                     <TableCell className="whitespace-nowrap overflow-hidden text-zinc-400">{s.ticket_type_id}</TableCell>
                     <TableCell className="whitespace-nowrap overflow-hidden font-bold text-amber-400">{s.remaining_balance?.toLocaleString()} F</TableCell>
                     <TableCell className="whitespace-nowrap overflow-hidden text-right">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
-                        onClick={() => {
-                          setSelectedSaleForPayment(s);
-                          setPaymentAmount(0);
-                        }}
-                      >
-                        Encaisser
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
+                          onClick={() => { setSelectedSaleForPayment(s); setPaymentAmount(0); }}
+                        >
+                          Encaisser
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all shadow-none"
+                          onClick={() => { setWaivingSale(s); setWaiveReason(''); }}
+                        >
+                          Classer
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -1206,6 +1251,53 @@ export default function TreasurerView({ profile }: { profile: Profile }) {
               </form>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Modal classer comme soldé */}
+      {waivingSale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-base">Classer comme soldé</h3>
+              <button onClick={() => setWaivingSale(null)} className="text-zinc-500 hover:text-white text-xl leading-none">×</button>
+            </div>
+
+            {/* Récap */}
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-3 text-sm space-y-1">
+              <p><span className="text-zinc-500">Invité :</span> <span className="font-bold text-white">{waivingSale.buyer_name}</span></p>
+              <p><span className="text-zinc-500">Prix final :</span> <span className="text-zinc-200">{waivingSale.final_price?.toLocaleString()} F</span></p>
+              <p><span className="text-zinc-500">Déjà payé :</span> <span className="text-green-400 font-bold">{waivingSale.total_paid?.toLocaleString()} F</span></p>
+              <p><span className="text-zinc-500">Solde remis :</span> <span className="text-purple-400 font-bold">{(waivingSale.remaining_balance || 0).toLocaleString()} F</span></p>
+            </div>
+
+            <form onSubmit={handleWaiveSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                  Motif <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={waiveReason}
+                  onChange={(e) => setWaiveReason(e.target.value)}
+                  required
+                  rows={3}
+                  placeholder="Ex: Accord TG, geste commercial, situation sociale..."
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 resize-none"
+                />
+                <p className="text-xs text-zinc-600">Visible dans les rapports financiers.</p>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setWaivingSale(null)}
+                  className="flex-1 rounded-lg border border-zinc-700 py-2 text-sm text-zinc-300 hover:bg-zinc-800 transition-colors">
+                  Annuler
+                </button>
+                <button type="submit" disabled={waiveSaving || !waiveReason.trim()}
+                  className="flex-1 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-40 py-2 text-sm font-bold text-white transition-colors">
+                  {waiveSaving ? 'Enregistrement...' : 'Confirmer'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

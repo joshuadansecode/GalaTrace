@@ -11,6 +11,7 @@ import { Plus, Wallet, Ticket, PieChart as PieChartIcon, Pencil, Trash2 } from '
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import ContextMenu from './ContextMenu';
 import SellerCashPanel from './SellerCashPanel';
+import { useSort, SortHeader } from '../lib/useSort';
 
 export default function SellerView({ profile }: { profile: Profile }) {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
@@ -20,6 +21,9 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 10;
+
+  const { sorted: sortedSales, sortKey: saleSortKey, sortDir: saleSortDir, toggle: toggleSaleSort } =
+    useSort(sales, 'created_at' as keyof Sale, 'desc');
 
   // Form state
   const [buyerName, setBuyerName] = useState('');
@@ -476,19 +480,29 @@ export default function SellerView({ profile }: { profile: Profile }) {
               </colgroup>
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Acheteur</TableHead>
-                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">N°</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                    <SortHeader label="Acheteur" colKey="buyer_name" currentKey={saleSortKey as string} currentDir={saleSortDir} onToggle={k => { toggleSaleSort(k as keyof Sale); setPage(0); }} />
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                    <SortHeader label="N°" colKey="ticket_number" currentKey={saleSortKey as string} currentDir={saleSortDir} onToggle={k => { toggleSaleSort(k as keyof Sale); setPage(0); }} />
+                  </TableHead>
                   <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Filière</TableHead>
                   <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Ticket</TableHead>
-                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Prix Final</TableHead>
-                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Payé</TableHead>
-                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">Reste</TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                    <SortHeader label="Prix Final" colKey="final_price" currentKey={saleSortKey as string} currentDir={saleSortDir} onToggle={k => { toggleSaleSort(k as keyof Sale); setPage(0); }} />
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                    <SortHeader label="Payé" colKey="total_paid" currentKey={saleSortKey as string} currentDir={saleSortDir} onToggle={k => { toggleSaleSort(k as keyof Sale); setPage(0); }} />
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400">
+                    <SortHeader label="Reste" colKey="remaining_balance" currentKey={saleSortKey as string} currentDir={saleSortDir} onToggle={k => { toggleSaleSort(k as keyof Sale); setPage(0); }} />
+                  </TableHead>
                   <TableHead className="whitespace-nowrap overflow-hidden text-zinc-400 text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(() => {
-                  const filtered = sales.filter(s =>
+                  const filtered = sortedSales.filter(s =>
                     s.buyer_name.toLowerCase().includes(search.toLowerCase()) ||
                     ((s as any).ticket_number || '').toLowerCase().includes(search.toLowerCase())
                   );

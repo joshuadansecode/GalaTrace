@@ -160,7 +160,7 @@ export default function Dashboard({ profile, session }: DashboardProps) {
       case 'checkin':
         return <TicketCheckInView />;
       case 'checkin-dashboard':
-        return <CheckInDashboard />;
+        return <CheckInDashboard isAdmin={profile.role === 'admin'} />;
       case 'placement':
         return <PlacementView profile={profile} />;
       case 'public':

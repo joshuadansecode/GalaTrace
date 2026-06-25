@@ -14,12 +14,16 @@ import ContextMenu from './ContextMenu';
 import FinancialSummaryCards from './FinancialSummaryCards';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useSort, SortHeader } from '../lib/useSort';
 
 export default function AdminView({ profile }: { profile: Profile }) {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('vendeur');
+
+  const { sorted: sortedUsers, sortKey: userSortKey, sortDir: userSortDir, toggle: toggleUserSort } =
+    useSort(users, 'created_at' as keyof Profile, 'desc');
   const [newUserName, setNewUserName] = useState('');
   const [invitingUser, setInvitingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
@@ -450,6 +454,21 @@ export default function AdminView({ profile }: { profile: Profile }) {
             <Download className="w-4 h-4 mr-2" />
             Exporter les Ventes
           </Button>
+          <Button
+            onClick={async () => {
+              if (!confirm('Réinitialiser TOUS les scans QR ? Cette action efface toutes les entrées enregistrées. À faire uniquement avant le Jour J.')) return;
+              const { data, error } = await supabase.rpc('reset_checkins', {});
+              if (error || (data as any)?.error) {
+                toast.error((data as any)?.error || error?.message || 'Erreur');
+                return;
+              }
+              toast.success(`${(data as any).reset_count} scan(s) réinitialisé(s). Prêt pour le Jour J !`);
+            }}
+            variant="outline"
+            className="border-red-500/40 text-red-400 hover:bg-red-500/10"
+          >
+            🔄 Reset scans test
+          </Button>
           <Button onClick={fetchUsers} variant="outline" size="icon">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
@@ -469,16 +488,24 @@ export default function AdminView({ profile }: { profile: Profile }) {
             <Table>
               <TableHeader>
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-400">Nom</TableHead>
-                  <TableHead className="text-zinc-400">Email</TableHead>
+                  <TableHead className="text-zinc-400">
+                    <SortHeader label="Nom" colKey="full_name" currentKey={userSortKey as string} currentDir={userSortDir} onToggle={k => toggleUserSort(k as keyof Profile)} />
+                  </TableHead>
+                  <TableHead className="text-zinc-400">
+                    <SortHeader label="Email" colKey="email" currentKey={userSortKey as string} currentDir={userSortDir} onToggle={k => toggleUserSort(k as keyof Profile)} />
+                  </TableHead>
                   <TableHead className="text-zinc-400">WhatsApp</TableHead>
-                  <TableHead className="text-zinc-400">Rôle</TableHead>
-                  <TableHead className="text-zinc-400">Statut</TableHead>
+                  <TableHead className="text-zinc-400">
+                    <SortHeader label="Rôle" colKey="role" currentKey={userSortKey as string} currentDir={userSortDir} onToggle={k => toggleUserSort(k as keyof Profile)} />
+                  </TableHead>
+                  <TableHead className="text-zinc-400">
+                    <SortHeader label="Statut" colKey="is_active" currentKey={userSortKey as string} currentDir={userSortDir} onToggle={k => toggleUserSort(k as keyof Profile)} />
+                  </TableHead>
                   <TableHead className="text-zinc-400 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => (
+                {sortedUsers.map((u) => (
                   <TableRow key={u.id} className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
