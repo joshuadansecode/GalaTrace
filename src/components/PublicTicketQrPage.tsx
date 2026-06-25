@@ -214,6 +214,40 @@ export default function PublicTicketQrPage() {
         </p>
       </div>
 
+      {/* ── Guide 3 étapes ── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-2">
+        {[
+          {
+            num: '1',
+            icon: '🎟️',
+            title: 'Ton type de ticket',
+            desc: 'Choisis le type de ticket que tu as acheté (Gold, Diamond, Platinum, Royal…)',
+          },
+          {
+            num: '2',
+            icon: '🔢',
+            title: 'Ton numéro de ticket',
+            desc: 'C\'est le numéro inscrit sur ton ticket physique ou communiqué par ton vendeur. Ex: D022',
+          },
+          {
+            num: '3',
+            icon: '📱',
+            title: '4 derniers chiffres WhatsApp',
+            desc: 'Les 4 derniers chiffres du numéro WhatsApp enregistré lors de ton achat. Ex: 4782',
+          },
+        ].map((step) => (
+          <div key={step.num} className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-black text-amber-400">
+              {step.num}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-zinc-100">{step.icon} {step.title}</p>
+              <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">{step.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="border-zinc-800 bg-zinc-900/90 shadow-sm shadow-black/10">
           <CardHeader>
