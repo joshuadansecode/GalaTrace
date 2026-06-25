@@ -57,6 +57,64 @@ export default function PublicTicketQrPage() {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // Onboarding — s'affiche une seule fois, mémorisé en localStorage
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return localStorage.getItem('galatrace-qr-onboarding') !== 'done';
+  });
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  const ONBOARDING_STEPS = [
+    {
+      icon: '🎟️',
+      color: 'from-amber-500/20 to-amber-500/5',
+      border: 'border-amber-500/30',
+      accent: 'text-amber-400',
+      title: 'Bienvenue sur la page QR',
+      desc: 'Cette page te permet de récupérer ton QR d\'entrée pour la Nuit des Distingués 2026. Tu en auras besoin le soir du gala pour entrer.',
+      hint: 'Suis les 3 étapes pour obtenir ton QR.',
+    },
+    {
+      icon: '🔢',
+      color: 'from-sky-500/20 to-sky-500/5',
+      border: 'border-sky-500/30',
+      accent: 'text-sky-400',
+      title: 'Ton numéro de ticket',
+      desc: 'Ton vendeur t\'a remis un ticket avec un numéro dessus. Ex: D022, G001, P003… C\'est ce numéro qu\'il faut saisir.',
+      hint: 'Si tu ne le trouves pas, contacte ton vendeur.',
+    },
+    {
+      icon: '📱',
+      color: 'from-purple-500/20 to-purple-500/5',
+      border: 'border-purple-500/30',
+      accent: 'text-purple-400',
+      title: '4 derniers chiffres WhatsApp',
+      desc: 'Pour sécuriser l\'accès, on te demande les 4 derniers chiffres du numéro WhatsApp que tu as donné lors de l\'achat.',
+      hint: 'Ex: si ton numéro finit par ...4782, tu saisis 4782.',
+    },
+    {
+      icon: '✅',
+      color: 'from-green-500/20 to-green-500/5',
+      border: 'border-green-500/30',
+      accent: 'text-green-400',
+      title: 'Télécharge ton e-ticket',
+      desc: 'Une fois ton QR affiché, télécharge ton e-ticket PDF. Il contient ton QR, ton nom, ta place et les infos du gala. Garde-le précieusement !',
+      hint: 'Présente-le à l\'entrée le soir du gala.',
+    },
+  ];
+
+  function closeOnboarding() {
+    localStorage.setItem('galatrace-qr-onboarding', 'done');
+    setShowOnboarding(false);
+  }
+
+  function nextStep() {
+    if (onboardingStep < ONBOARDING_STEPS.length - 1) {
+      setOnboardingStep(s => s + 1);
+    } else {
+      closeOnboarding();
+    }
+  }
+
   useEffect(() => {
     async function fetchTicketTypes() {
       setLoadingTypes(true);
@@ -201,7 +259,71 @@ export default function PublicTicketQrPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 lg:px-6 lg:py-12">
-      {/* Header */}
+
+      {/* ── Modal Onboarding ── */}
+      {showOnboarding && (() => {
+        const step = ONBOARDING_STEPS[onboardingStep];
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <div className={`w-full max-w-sm rounded-2xl border ${step.border} bg-gradient-to-b ${step.color} bg-zinc-950 shadow-2xl overflow-hidden`}>
+
+              {/* Barre de progression */}
+              <div className="flex gap-1 p-4 pb-0">
+                {ONBOARDING_STEPS.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 flex-1 rounded-full transition-all duration-500 ${i <= onboardingStep ? step.accent.replace('text-', 'bg-') : 'bg-zinc-800'}`}
+                  />
+                ))}
+              </div>
+
+              {/* Contenu */}
+              <div className="p-6 space-y-4">
+                <div className="text-5xl text-center">{step.icon}</div>
+                <div className="text-center space-y-2">
+                  <h3 className={`text-xl font-black ${step.accent}`}>{step.title}</h3>
+                  <p className="text-sm text-zinc-300 leading-relaxed">{step.desc}</p>
+                </div>
+
+                {/* Hint */}
+                <div className={`rounded-lg border ${step.border} bg-zinc-900/60 px-3 py-2 text-center`}>
+                  <p className={`text-xs font-medium ${step.accent}`}>💡 {step.hint}</p>
+                </div>
+
+                {/* Boutons */}
+                <div className="flex gap-3 pt-1">
+                  {onboardingStep > 0 && (
+                    <button
+                      onClick={() => setOnboardingStep(s => s - 1)}
+                      className="flex-1 rounded-xl border border-zinc-700 py-3 text-sm text-zinc-400 hover:bg-zinc-800 transition-colors"
+                    >
+                      ← Précédent
+                    </button>
+                  )}
+                  <button
+                    onClick={nextStep}
+                    className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition-all active:scale-95
+                      ${onboardingStep === ONBOARDING_STEPS.length - 1
+                        ? 'bg-green-600 hover:bg-green-500'
+                        : 'bg-amber-600 hover:bg-amber-500'}`}
+                  >
+                    {onboardingStep === ONBOARDING_STEPS.length - 1 ? "C'est parti !" : 'Suivant →'}
+                  </button>
+                </div>
+
+                {/* Passer */}
+                <button
+                  onClick={closeOnboarding}
+                  className="w-full text-xs text-zinc-600 hover:text-zinc-400 transition-colors py-1"
+                >
+                  Passer le guide
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {/* ── Header ── */}
       <div className="mb-8 text-center">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-amber-400">
           🎟️ GalaTrace
@@ -212,6 +334,46 @@ export default function PublicTicketQrPage() {
         <p className="mt-2 text-sm text-zinc-400">
           Renseigne les informations de ton ticket pour récupérer ton QR et l'imprimer.
         </p>
+        <button
+          onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs text-zinc-500 hover:text-zinc-300 hover:border-zinc-600 transition-colors"
+        >
+          <span className="text-sm">?</span> Voir le guide
+        </button>
+      </div>
+
+      {/* ── Guide 3 étapes ── */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 mb-2">
+        {[
+          {
+            num: '1',
+            icon: '🎟️',
+            title: 'Ton type de ticket',
+            desc: 'Choisis le type de ticket que tu as acheté (Gold, Diamond, Platinum, Royal…)',
+          },
+          {
+            num: '2',
+            icon: '🔢',
+            title: 'Ton numéro de ticket',
+            desc: 'C\'est le numéro inscrit sur ton ticket physique ou communiqué par ton vendeur. Ex: D022',
+          },
+          {
+            num: '3',
+            icon: '📱',
+            title: '4 derniers chiffres WhatsApp',
+            desc: 'Les 4 derniers chiffres du numéro WhatsApp enregistré lors de ton achat. Ex: 4782',
+          },
+        ].map((step) => (
+          <div key={step.num} className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-black text-amber-400">
+              {step.num}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-zinc-100">{step.icon} {step.title}</p>
+              <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">{step.desc}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── Guide 3 étapes ── */}
