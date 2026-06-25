@@ -79,8 +79,8 @@ export default function PublicTicketQrPage() {
       border: 'border-sky-500/30',
       accent: 'text-sky-400',
       title: 'Ton numéro de ticket',
-      desc: 'Ton vendeur t\'a remis un ticket avec un numéro dessus. Ex: D022, G001, P003… C\'est ce numéro qu\'il faut saisir.',
-      hint: 'Si tu ne le trouves pas, contacte ton vendeur.',
+      desc: 'Ton vendeur t\'a remis un ticket avec un numéro dessus. Le format dépend de ta catégorie :',
+      hint: 'Diamond → D022   Gold → G001   Platinum → P003   Royal → R001',
     },
     {
       icon: '📱',
@@ -428,7 +428,6 @@ export default function PublicTicketQrPage() {
                   value={selectedTicketType}
                   onChange={(e) => setSelectedTicketType(e.target.value)}
                   disabled={loadingTypes || submitting}
-                  required
                 >
                   {ticketTypes.map((ticketType) => (
                     <option key={ticketType.id} value={ticketType.id}>
@@ -443,10 +442,9 @@ export default function PublicTicketQrPage() {
                 <Input
                   value={ticketNumber}
                   onChange={(e) => setTicketNumber(e.target.value)}
-                  placeholder="Ex: A-0246"
+                  placeholder="Ex: D022, G001, P003, R001..."
                   className="border-zinc-700 bg-zinc-900 text-zinc-100"
                   disabled={submitting}
-                  required
                 />
               </div>
 
@@ -462,7 +460,6 @@ export default function PublicTicketQrPage() {
                   inputMode="numeric"
                   className="border-zinc-700 bg-zinc-900 text-zinc-100 tracking-widest"
                   disabled={submitting}
-                  required
                 />
                 <p className="text-xs text-zinc-600">
                   Doit correspondre au numéro WhatsApp enregistré lors de l'achat.

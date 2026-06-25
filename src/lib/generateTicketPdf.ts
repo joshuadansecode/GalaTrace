@@ -1,7 +1,26 @@
 import { jsPDF } from 'jspdf';
 import { formatTicketType } from './utils';
-import logoLcs from '../assets/logo-lcs.png';
-import logoIso from '../assets/logo-iso.png';
+import logoLcsUrl from '../assets/logo-lcs.png';
+import logoIsoUrl from '../assets/logo-iso.png';
+
+// Convertit une URL en base64 via le canvas (compatible navigateur)
+async function urlToBase64(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { reject(new Error('Canvas context unavailable')); return; }
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.src = url;
+  });
+}
 
 export interface TicketPdfData {
   buyer_name:     string;
@@ -41,6 +60,16 @@ export async function generateTicketPdf(ticket: TicketPdfData): Promise<void> {
   const W = 210, H = 148;
   const t = THEMES[ticket.ticket_type_id] ?? DEFAULT_THEME;
 
+  // Chargement des logos via canvas → base64
+  let lcsB64 = '';
+  let isoB64 = '';
+  try {
+    [lcsB64, isoB64] = await Promise.all([
+      urlToBase64(logoLcsUrl),
+      urlToBase64(logoIsoUrl),
+    ]);
+  } catch { /* continue sans logos si erreur */ }
+
   // ── Fond gauche ────────────────────────────────────────────────
   doc.setFillColor(...t.bg);
   doc.rect(0, 0, 138, H, 'F');
@@ -66,8 +95,8 @@ export async function generateTicketPdf(ticket: TicketPdfData): Promise<void> {
   const LX = 12; // left margin
 
   // ── Logos ──────────────────────────────────────────────────────
-  doc.addImage(logoLcs, 'PNG', LX, 7, 16, 16);
-  doc.addImage(logoIso, 'PNG', LX + 18, 9, 12, 12);
+  if (lcsB64) doc.addImage(lcsB64, 'PNG', LX, 7, 16, 16);
+  if (isoB64) doc.addImage(isoB64, 'PNG', LX + 18, 9, 12, 12);
 
   // ── Nom événement ──────────────────────────────────────────────
   doc.setFont('helvetica', 'bold');

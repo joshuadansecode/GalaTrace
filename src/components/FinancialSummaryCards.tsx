@@ -12,10 +12,14 @@ type FinancialSummary = {
 const normalizeStatus = (value: unknown) =>
   String(value ?? '')
     .toLowerCase()
+    .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 
-const isExpenseReglee = (expense: any) => normalizeStatus(expense.payment_status) === 'reglee';
+// Dépense actée = validée par la comptable ET marquée comme réglée
+const isExpenseActee = (expense: any) =>
+  normalizeStatus(expense.payment_status) === 'reglee' &&
+  normalizeStatus(expense.validation_status) === 'validee';
 
 const initialSummary: FinancialSummary = {
   totalEncaisse: 0,
@@ -42,7 +46,7 @@ export default function FinancialSummaryCards() {
 
         const totalEncaisse = (paymentsRes.data || []).reduce((acc: number, payment: any) => acc + (payment.amount || 0), 0);
         const totalDepensesActees = (expensesRes.data || [])
-          .filter(isExpenseReglee)
+          .filter(isExpenseActee)
           .reduce((acc: number, expense: any) => acc + (expense.amount || 0), 0);
         const pendingExpensePaymentChanges = (expensesRes.data || [])
           .filter((expense: any) => expense.payment_status_pending && expense.payment_status_requested_by)
