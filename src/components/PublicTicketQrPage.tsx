@@ -5,8 +5,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import QRCode from 'qrcode';
-import { Download, Loader2, QrCode, Search } from 'lucide-react';
+import { Download, FileText, Loader2, QrCode, Search } from 'lucide-react';
 import { formatTicketType } from '../lib/utils';
+import { generateTicketPdf } from '../lib/generateTicketPdf';
 
 type PublicTicketType = {
   id: string;
@@ -21,10 +22,26 @@ type TicketQrResult = {
   ticket_number: string;
   qr_token: string;
   qr_issued_at: string | null;
+  table_name?: string;
+  seat_number?: number;
 };
+
+type TicketNotFound = { type: 'not_found' };
+type TicketNotPaid = {
+  type: 'not_paid';
+  buyer_name: string;
+  final_price: number;
+  total_paid: number;
+  remaining: number;
+};
+type TicketError = 'not_found' | 'not_paid' | null;
 
 type TicketQrRpcResponse = Partial<TicketQrResult> & {
   error?: string;
+  buyer_name?: string;
+  final_price?: number;
+  total_paid?: number;
+  remaining?: number;
 };
 
 export default function PublicTicketQrPage() {
@@ -33,8 +50,12 @@ export default function PublicTicketQrPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedTicketType, setSelectedTicketType] = useState('');
   const [ticketNumber, setTicketNumber] = useState('');
+  const [phoneLastFour, setPhoneLastFour] = useState('');
   const [result, setResult] = useState<TicketQrResult | null>(null);
+  const [notPaid, setNotPaid] = useState<TicketNotPaid | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   useEffect(() => {
     async function fetchTicketTypes() {
@@ -69,20 +90,48 @@ export default function PublicTicketQrPage() {
       return;
     }
 
+    const digits = phoneLastFour.replace(/\D/g, '');
+    if (digits.length !== 4) {
+      toast.error('Saisissez les 4 derniers chiffres de votre numéro WhatsApp.');
+      return;
+    }
+
     setSubmitting(true);
     setResult(null);
+    setNotPaid(null);
+    setNotFound(false);
     setQrDataUrl('');
 
     try {
       const { data, error } = await supabase.rpc('public_get_ticket_qr', {
         p_ticket_type_id: selectedTicketType,
         p_ticket_number: ticketNumber.trim(),
+        p_phone_last_four: digits,
       });
 
       if (error) throw error;
 
       const payload = (data || {}) as TicketQrRpcResponse;
-      if (payload.error) throw new Error(payload.error);
+
+      // Cas ticket non payé — on affiche le panneau "clash"
+      if (payload.error === 'not_paid') {
+        setNotPaid({
+          buyer_name: payload.buyer_name ?? '',
+          final_price: payload.final_price ?? 0,
+          total_paid: payload.total_paid ?? 0,
+          remaining: payload.remaining ?? 0,
+        });
+        // On vide l'éventuel résultat précédent
+        setResult(null);
+        setQrDataUrl('');
+        return;
+      }
+
+      if (payload.error) {
+        // Tous les cas d'erreur → panneau dans la card, pas de toast
+        setNotFound(true);
+        return;
+      }
 
       if (!payload.sale_id || !payload.qr_token || !payload.ticket_number || !payload.ticket_type_id || !payload.buyer_name) {
         throw new Error('Réponse QR invalide.');
@@ -95,6 +144,8 @@ export default function PublicTicketQrPage() {
         ticket_number: payload.ticket_number,
         qr_token: payload.qr_token,
         qr_issued_at: payload.qr_issued_at || null,
+        table_name: (payload as any).table_name ?? undefined,
+        seat_number: (payload as any).seat_number ?? undefined,
       };
 
       const dataUrl = await QRCode.toDataURL(`GALATRACE:${safeResult.qr_token}`, {
@@ -111,7 +162,7 @@ export default function PublicTicketQrPage() {
       setQrDataUrl(dataUrl);
       toast.success('QR généré avec succès.');
     } catch (error: any) {
-      toast.error(error.message || 'Ticket introuvable.');
+      setNotFound(true);
     } finally {
       setSubmitting(false);
     }
@@ -127,11 +178,40 @@ export default function PublicTicketQrPage() {
     document.body.removeChild(anchor);
   }
 
+  async function downloadPdf() {
+    if (!result || !qrDataUrl) return;
+    setGeneratingPdf(true);
+    try {
+      await generateTicketPdf({
+        buyer_name:     result.buyer_name,
+        ticket_type_id: result.ticket_type_id,
+        ticket_number:  result.ticket_number,
+        qr_issued_at:   result.qr_issued_at,
+        qrDataUrl,
+        table_name:     result.table_name,
+        seat_number:    result.seat_number,
+      });
+      toast.success('E-ticket PDF téléchargé.');
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la génération du PDF.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8 lg:px-6 lg:py-12">
-      <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">Récupération du QR Ticket</h1>
-        <p className="mt-2 text-sm text-zinc-400">Entrez votre type de ticket et votre numéro pour afficher et télécharger votre QR.</p>
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-amber-400">
+          🎟️ GalaTrace
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
+          Mon QR d'entrée
+        </h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          Renseigne les informations de ton ticket pour récupérer ton QR et l'imprimer.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -174,8 +254,33 @@ export default function PublicTicketQrPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  4 derniers chiffres WhatsApp
+                </label>
+                <Input
+                  value={phoneLastFour}
+                  onChange={(e) => setPhoneLastFour(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="Ex: 4782"
+                  maxLength={4}
+                  inputMode="numeric"
+                  className="border-zinc-700 bg-zinc-900 text-zinc-100 tracking-widest"
+                  disabled={submitting}
+                  required
+                />
+                <p className="text-xs text-zinc-600">
+                  Doit correspondre au numéro WhatsApp enregistré lors de l'achat.
+                </p>
+              </div>
+
               <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={loadingTypes || submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Afficher mon QR'}
+                {loadingTypes ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement…</>
+                ) : submitting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Recherche en cours…</>
+                ) : (
+                  'Afficher mon QR'
+                )}
               </Button>
             </form>
           </CardContent>
@@ -190,12 +295,69 @@ export default function PublicTicketQrPage() {
             <CardDescription>Présentez ce QR à l'entrée le jour de l'événement.</CardDescription>
           </CardHeader>
           <CardContent>
-            {!result || !qrDataUrl ? (
+            {/* ── Cas : ticket introuvable ── */}
+            {notFound && !result && !notPaid && (
+              <div className="flex min-h-[380px] flex-col items-center justify-center gap-4 rounded-xl border-2 border-zinc-600/60 bg-zinc-900/80 px-6 py-8 text-center">
+                <div className="text-5xl">❓</div>
+                <h3 className="text-xl font-black uppercase tracking-wide text-zinc-300">
+                  Ticket introuvable
+                </h3>
+                <p className="text-sm text-zinc-400 max-w-xs leading-relaxed">
+                  Aucun ticket ne correspond à ces informations.<br/>
+                  Vérifie le <span className="text-white font-semibold">type de ticket</span>, le <span className="text-white font-semibold">numéro</span> et les <span className="text-white font-semibold">4 derniers chiffres</span> de ton WhatsApp.
+                </p>
+                <p className="text-xs text-zinc-600 max-w-xs">
+                  Si le problème persiste, contacte ton vendeur.
+                </p>
+              </div>
+            )}
+
+            {/* ── Cas : ticket non payé ── */}
+            {notPaid && (
+              <div className="flex min-h-[380px] flex-col items-center justify-center gap-4 rounded-xl border-2 border-red-500/60 bg-red-950/40 px-6 py-8 text-center">
+                <div className="text-5xl">🚫</div>
+                <h3 className="text-xl font-black uppercase tracking-wide text-red-400">
+                  Accès refusé
+                </h3>
+                <p className="text-sm font-semibold text-red-300">
+                  {notPaid.buyer_name}, ton ticket <span className="text-white">n'est pas soldé.</span>
+                </p>
+                <div className="w-full rounded-lg border border-red-500/30 bg-red-900/30 p-4 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Prix total</span>
+                    <span className="font-bold text-zinc-100">{notPaid.final_price.toLocaleString()} F</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Déjà payé</span>
+                    <span className="font-bold text-amber-400">{notPaid.total_paid.toLocaleString()} F</span>
+                  </div>
+                  <div className="my-1 border-t border-red-500/20" />
+                  <div className="flex justify-between">
+                    <span className="text-zinc-300 font-semibold">Reste à payer</span>
+                    <span className="text-xl font-black text-red-400">{notPaid.remaining.toLocaleString()} F</span>
+                  </div>
+                </div>
+                <p className="text-xs text-red-400/80 font-medium leading-relaxed max-w-xs">
+                  Aucun QR ne sera généré tant que le solde n'est pas réglé.<br />
+                  Contacte ton vendeur pour régulariser avant le jour J.
+                </p>
+              </div>
+            )}
+
+            {/* ── Cas : pas encore cherché ── */}
+            {!result && !notPaid && !notFound && (
               <div className="flex min-h-[380px] items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-950/40 px-6 text-center text-sm text-zinc-500">
                 Le QR apparaît ici après recherche du ticket.
               </div>
-            ) : (
+            )}
+
+            {/* ── Cas : ticket trouvé et payé ── */}
+            {result && qrDataUrl && (
               <div className="space-y-4">
+                <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-900/20 px-3 py-2 text-sm text-green-300">
+                  <span className="text-base">✅</span>
+                  <span className="font-semibold">Ticket entièrement soldé — tu es prêt(e) pour le gala !</span>
+                </div>
                 <div className="flex justify-center rounded-xl border border-zinc-800 bg-white p-4">
                   <img src={qrDataUrl} alt="QR Ticket GalaTrace" className="h-64 w-64" />
                 </div>
@@ -203,10 +365,36 @@ export default function PublicTicketQrPage() {
                   <p><span className="text-zinc-500">Nom:</span> <span className="font-semibold text-zinc-100">{result.buyer_name}</span></p>
                   <p><span className="text-zinc-500">Ticket:</span> <span className="font-semibold text-zinc-100">{formatTicketType(result.ticket_type_id)}</span></p>
                   <p><span className="text-zinc-500">Numéro:</span> <span className="font-semibold text-zinc-100">{result.ticket_number}</span></p>
+
+                  {/* Place assignée */}
+                  {(result.table_name || result.seat_number) ? (
+                    <div className="mt-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-amber-400 mb-0.5">📍 Ta place</p>
+                      <p className="text-base font-black text-white">
+                        {result.table_name
+                          ? `Table ${result.table_name}${result.seat_number ? ` — Place nº${result.seat_number}` : ''}`
+                          : `Place nº${result.seat_number}`}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-zinc-600 italic">Place non encore assignée — renseigne-toi à l'entrée.</p>
+                  )}
                 </div>
                 <Button onClick={downloadQr} className="w-full bg-emerald-600 hover:bg-emerald-700">
                   <Download className="mr-2 h-4 w-4" />
                   Télécharger le QR
+                </Button>
+                <Button
+                  onClick={downloadPdf}
+                  disabled={generatingPdf}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {generatingPdf ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" />
+                  )}
+                  Télécharger l'e-ticket PDF
                 </Button>
               </div>
             )}

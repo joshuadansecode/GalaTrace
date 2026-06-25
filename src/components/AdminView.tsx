@@ -44,7 +44,8 @@ export default function AdminView({ profile }: { profile: Profile }) {
     date: true, ticket_number: true, buyer_name: true, buyer_phone: true,
     filiere: true, annee: true, ticket_type: true, vendeur: true,
     base_price: false, discount: false, final_price: true,
-    total_paid: true, remaining: true, table: true, notes: true
+    total_paid: true, remaining: true, table: true, notes: true,
+    waived: true, waived_reason: true,
   });
   const [exportFilter, setExportFilter] = useState({ ticket: '', status: '', filiere: '' });
   const [totalEncaisse, setTotalEncaisse] = useState(0);
@@ -293,10 +294,13 @@ export default function AdminView({ profile }: { profile: Profile }) {
       if (exportCols.final_price) cols.push('Prix');
       if (exportCols.total_paid) cols.push('Payé');
       if (exportCols.remaining) cols.push('Reste');
+      if (exportCols.waived) cols.push('Classé');
+      if (exportCols.waived_reason) cols.push('Motif remise');
       if (exportCols.notes) cols.push('Notes');
 
       const rows = filtered.map((s: any) => {
         const totalPaid = s.payments.reduce((a: number, p: any) => a + p.amount, 0);
+        const isWaived = !!s.waived_at;
         const row: string[] = [];
         if (exportCols.ticket_number) row.push(s.ticket_number || '');
         if (exportCols.buyer_name) row.push(s.buyer_name || '');
@@ -307,7 +311,9 @@ export default function AdminView({ profile }: { profile: Profile }) {
         if (exportCols.vendeur) row.push(s.seller?.full_name || s.seller?.email || '');
         if (exportCols.final_price) row.push(`${s.final_price?.toLocaleString()} F`);
         if (exportCols.total_paid) row.push(`${totalPaid.toLocaleString()} F`);
-        if (exportCols.remaining) row.push(`${(s.final_price - totalPaid).toLocaleString()} F`);
+        if (exportCols.remaining) row.push(isWaived ? 'Remis' : `${(s.final_price - totalPaid).toLocaleString()} F`);
+        if (exportCols.waived) row.push(isWaived ? 'Oui' : '');
+        if (exportCols.waived_reason) row.push(s.waived_reason || '');
         if (exportCols.notes) row.push(s.notes || '');
         return row;
       });
@@ -385,6 +391,8 @@ export default function AdminView({ profile }: { profile: Profile }) {
       if (exportCols.final_price) headers.push('Prix Final');
       if (exportCols.total_paid) headers.push('Total Payé');
       if (exportCols.remaining) headers.push('Reste');
+      if (exportCols.waived) headers.push('Classé soldé');
+      if (exportCols.waived_reason) headers.push('Motif remise');
       if (exportCols.table) headers.push('Table/Place');
       if (exportCols.notes) headers.push('Notes');
 
@@ -407,7 +415,9 @@ export default function AdminView({ profile }: { profile: Profile }) {
         if (exportCols.discount) row.push(String(s.discount_amount || 0));
         if (exportCols.final_price) row.push(String(s.final_price ?? ''));
         if (exportCols.total_paid) row.push(String(totalPaid));
-        if (exportCols.remaining) row.push(String(remaining));
+        if (exportCols.remaining) row.push(s.waived_at ? 'Remis' : String(remaining));
+        if (exportCols.waived) row.push(s.waived_at ? 'Oui' : '');
+        if (exportCols.waived_reason) row.push(`"${(s.waived_reason || '').replace(/"/g, '""')}"`);
         if (exportCols.table) row.push(`"${seat?.table?.name ? `${seat.table.name} #${seat.seat_number}` : ''}"`);
         if (exportCols.notes) row.push(`"${(s.notes || '').replace(/"/g, '""')}"`);
         csv += row.join(',') + '\n';

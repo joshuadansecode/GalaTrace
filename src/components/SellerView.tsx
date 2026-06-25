@@ -45,6 +45,13 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const [editNotes, setEditNotes] = useState('');
   const [editTicketNumber, setEditTicketNumber] = useState('');
   const [editBuyerPhone, setEditBuyerPhone] = useState('');
+  const [editDiscountAmount, setEditDiscountAmount] = useState(0);
+  const [editDiscountSource, setEditDiscountSource] = useState('');
+
+  // Waive modal
+  const [waivingSale, setWaivingSale] = useState<any | null>(null);
+  const [waiveReason, setWaiveReason] = useState('');
+  const [waiveSaving, setWaiveSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -60,7 +67,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
     try {
       const [ttRes, salesRes, quotasRes] = await Promise.all([
         supabase.from('ticket_types').select('*'),
-        supabase.from('sales').select('*, payments(amount)').eq('seller_id', profile.id),
+      supabase.from('sales').select('*, payments(amount)').eq('seller_id', profile.id),
         supabase.from('quotas').select('*').eq('seller_id', profile.id)
       ]);
 
@@ -73,10 +80,12 @@ export default function SellerView({ profile }: { profile: Profile }) {
       
       const processedSales = (salesRes.data || []).map((s: any) => {
         const totalPaid = s.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
+        const isWaived = !!s.waived_at;
         return {
           ...s,
           total_paid: totalPaid,
-          remaining_balance: s.final_price - totalPaid
+          remaining_balance: isWaived ? 0 : s.final_price - totalPaid,
+          is_waived: isWaived,
         };
       });
       setSales(processedSales);
@@ -114,6 +123,16 @@ export default function SellerView({ profile }: { profile: Profile }) {
   const totalSoldTickets = chartData.reduce((acc, item) => acc + item.value, 0);
   const totalSalesValue = sales.reduce((acc, sale) => acc + (sale.final_price || 0), 0);
 
+  function openEditSale(s: any) {
+    setEditingSale(s);
+    setEditBuyerName(s.buyer_name);
+    setEditNotes(s.notes || '');
+    setEditTicketNumber(s.ticket_number || '');
+    setEditBuyerPhone(s.buyer_phone || '');
+    setEditDiscountAmount(s.discount_amount || 0);
+    setEditDiscountSource(s.discount_source || '');
+  }
+
   async function handleDeleteSale(saleId: string) {
     if (!confirm('Supprimer cette vente ? Cette action est irréversible.')) return;
     const { error } = await supabase.from('sales').delete().eq('id', saleId);
@@ -125,16 +144,86 @@ export default function SellerView({ profile }: { profile: Profile }) {
   async function handleEditSale(e: React.FormEvent) {
     e.preventDefault();
     if (!editingSale) return;
+
+    // Correction prix si modifié
+    const priceChanged = editDiscountAmount !== (editingSale.discount_amount || 0);
+    if (priceChanged) {
+      const { data, error } = await supabase.rpc('correct_sale_price', {
+        p_sale_id:         editingSale.id,
+        p_discount_amount: editDiscountAmount,
+        p_discount_source: editDiscountSource || null,
+      });
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || 'Erreur correction prix');
+        return;
+      }
+      const result = data as any;
+      toast.success(`Prix corrigé : ${result.old_final?.toLocaleString()} F → ${result.new_final?.toLocaleString()} F`);
+    }
+
+    // Mise à jour des autres champs
     const { error } = await supabase.from('sales').update({
-      buyer_name: editBuyerName,
-      notes: editNotes || null,
+      buyer_name:    editBuyerName,
+      notes:         editNotes || null,
       ticket_number: editTicketNumber || null,
-      buyer_phone: editBuyerPhone || null
+      buyer_phone:   editBuyerPhone || null,
     }).eq('id', editingSale.id);
+
     if (error) { toast.error('Erreur lors de la modification'); return; }
-    toast.success('Vente modifiée');
+    if (!priceChanged) toast.success('Vente modifiée');
     setEditingSale(null);
     fetchData();
+  }
+
+  async function handleWaiveBalance(sale: any) {
+    if (!sale) return;
+    const totalPaid = sale.total_paid || 0;
+    if (totalPaid <= 0) {
+      toast.error('Aucun paiement enregistré — impossible d\'effacer un solde nul.');
+      return;
+    }
+    const newDiscount = sale.base_price - totalPaid;
+    if (newDiscount < 0) {
+      toast.error('Le montant payé dépasse le prix de base, vérifiez les données.');
+      return;
+    }
+    const { data, error } = await supabase.rpc('correct_sale_price', {
+      p_sale_id:         sale.id,
+      p_discount_amount: newDiscount,
+      p_discount_source: 'Remise solde',
+    });
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || error?.message || 'Erreur');
+      return;
+    }
+    toast.success(`Solde effacé — ${sale.buyer_name} est considéré(e) comme soldé(e).`);
+    setEditingSale(null);
+    fetchData();
+  }
+
+  async function handleWaiveSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!waivingSale || !waiveReason.trim()) return;
+    setWaiveSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('waive_sale_balance', {
+        p_sale_id: waivingSale.id,
+        p_reason:  waiveReason.trim(),
+      });
+      if (error || (data as any)?.error) {
+        toast.error((data as any)?.error || error?.message || 'Erreur');
+        return;
+      }
+      const res = data as any;
+      toast.success(
+        `${res.buyer_name} classé(e) comme soldé(e). Payé : ${res.total_paid?.toLocaleString()} F / ${res.final_price?.toLocaleString()} F (écart : ${res.gap?.toLocaleString()} F)`
+      );
+      setWaivingSale(null);
+      setWaiveReason('');
+      fetchData();
+    } finally {
+      setWaiveSaving(false);
+    }
   }
 
   async function handleSale(e: React.FormEvent) {
@@ -408,7 +497,7 @@ export default function SellerView({ profile }: { profile: Profile }) {
                     {paginated.map((s) => (
                   <React.Fragment key={s.id}>
                     <ContextMenu items={[
-                      { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { setEditingSale(s); setEditBuyerName(s.buyer_name); setEditNotes((s as any).notes || ''); setEditTicketNumber((s as any).ticket_number || ''); setEditBuyerPhone((s as any).buyer_phone || ''); } },
+                      { label: 'Modifier', icon: <Pencil className="w-4 h-4" />, onClick: () => { openEditSale(s); } },
                       { label: 'Supprimer', icon: <Trash2 className="w-4 h-4" />, danger: true, onClick: () => handleDeleteSale(s.id) }
                     ]}>
                   <TableRow className="border-zinc-800 hover:bg-zinc-800/50 transition-colors">
@@ -435,26 +524,44 @@ export default function SellerView({ profile }: { profile: Profile }) {
                         <span className={s.remaining_balance! === 0 ? 'font-bold text-green-400' : 'text-zinc-300'}>
                           {s.total_paid?.toLocaleString()} F
                         </span>
-                        {s.remaining_balance! === 0 && (
+                        {s.remaining_balance! === 0 && !(s as any).is_waived && (
                           <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-400">Payé</span>
                         )}
-                        {s.remaining_balance! > 0 && s.total_paid! > 0 && (
+                        {(s as any).is_waived && (
+                          <span
+                            className="cursor-help rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-300"
+                            title={(s as any).waived_reason || ''}
+                          >
+                            Classé ✦
+                          </span>
+                        )}
+                        {s.remaining_balance! > 0 && s.total_paid! > 0 && !(s as any).is_waived && (
                           <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">Partiel</span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell className={s.remaining_balance! > 0 ? 'whitespace-nowrap overflow-hidden py-4 align-middle font-bold text-amber-400' : 'whitespace-nowrap overflow-hidden py-4 align-middle text-zinc-600'}>
-                      {s.remaining_balance?.toLocaleString()} F
+                      {s.remaining_balance! > 0 ? `${s.remaining_balance?.toLocaleString()} F` : '—'}
                     </TableCell>
                     <TableCell className="whitespace-nowrap overflow-hidden py-4 align-middle text-right">
-                      {s.remaining_balance! > 0 && (
-                        <Button size="sm" variant="outline"
-                          className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
-                          onClick={() => { setSelectedSaleForPayment(s); setPaymentAmount(0); }}
-                        >
-                          Encaisser
-                        </Button>
-                      )}
+                      <div className="flex justify-end gap-1">
+                        {s.remaining_balance! > 0 && (
+                          <Button size="sm" variant="outline"
+                            className="h-7 text-xs bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-white transition-all shadow-none"
+                            onClick={() => { setSelectedSaleForPayment(s); setPaymentAmount(0); }}
+                          >
+                            Encaisser
+                          </Button>
+                        )}
+                        {s.remaining_balance! > 0 && (
+                          <Button size="sm" variant="outline"
+                            className="h-7 text-xs bg-purple-500/10 text-purple-400 border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all shadow-none"
+                            onClick={() => { setWaivingSale(s); setWaiveReason(''); }}
+                          >
+                            Classer
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                     </ContextMenu>
@@ -675,23 +782,171 @@ export default function SellerView({ profile }: { profile: Profile }) {
               <form onSubmit={handleEditSale} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Nom acheteur</label>
-                <Input value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} required className={fieldClass} />
+                  <Input value={editBuyerName} onChange={(e) => setEditBuyerName(e.target.value)} required className={fieldClass} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">WhatsApp</label>
-                <Input value={editBuyerPhone} onChange={(e) => setEditBuyerPhone(e.target.value)} className={fieldClass} placeholder="+225 07 00 00 00 00" />
+                  <Input value={editBuyerPhone} onChange={(e) => setEditBuyerPhone(e.target.value)} className={fieldClass} placeholder="+225 07 00 00 00 00" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">N° Ticket</label>
-                <Input value={editTicketNumber} onChange={(e) => setEditTicketNumber(e.target.value)} className={fieldClass} />
+                  <Input value={editTicketNumber} onChange={(e) => setEditTicketNumber(e.target.value)} className={fieldClass} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-zinc-400 uppercase">Notes</label>
-                <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={fieldClass} />
+                  <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className={fieldClass} />
                 </div>
+
+                {/* ── Correction du prix ── */}
+                <div className="rounded-lg border border-zinc-700/60 bg-zinc-900/60 p-3 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Correction du prix</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-500">Réduction (F)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={editingSale?.base_price ?? 99999}
+                        value={editDiscountAmount || ''}
+                        onChange={(e) => setEditDiscountAmount(Number(e.target.value))}
+                        className={fieldClass}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-500">Source réduction</label>
+                      <select
+                        value={editDiscountSource}
+                        onChange={(e) => setEditDiscountSource(e.target.value)}
+                        className={fieldClass}
+                      >
+                        <option value="">—</option>
+                        <option value="BDE">BDE</option>
+                        <option value="Administration">Administration</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Récapitulatif visuel */}
+                  {editingSale && (
+                    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-xs space-y-1">
+                      <div className="flex justify-between text-zinc-500">
+                        <span>Prix de base</span>
+                        <span>{(editingSale.base_price ?? 0).toLocaleString()} F</span>
+                      </div>
+                      <div className="flex justify-between text-amber-400">
+                        <span>− Réduction</span>
+                        <span>− {editDiscountAmount.toLocaleString()} F</span>
+                      </div>
+                      <div className="flex justify-between border-t border-zinc-800 pt-1 font-bold">
+                        <span className="text-zinc-200">Prix final</span>
+                        <span className={
+                          (editingSale.base_price - editDiscountAmount) < (editingSale.total_paid || 0)
+                            ? 'text-green-400'
+                            : 'text-white'
+                        }>
+                          {Math.max(0, (editingSale.base_price ?? 0) - editDiscountAmount).toLocaleString()} F
+                        </span>
+                      </div>
+                      {/* Indique si la personne sera considérée comme soldée après correction */}
+                      {(editingSale.total_paid || 0) >= Math.max(0, (editingSale.base_price ?? 0) - editDiscountAmount) && (
+                        <p className="text-green-400 font-semibold pt-1">
+                          ✅ Après correction, ce ticket sera considéré comme soldé.
+                        </p>
+                      )}
+                      {(editingSale.total_paid || 0) < Math.max(0, (editingSale.base_price ?? 0) - editDiscountAmount) && editDiscountAmount > 0 && (
+                        <p className="text-zinc-500 pt-1">
+                          Reste à payer après correction : {Math.max(0, (editingSale.base_price ?? 0) - editDiscountAmount - (editingSale.total_paid || 0)).toLocaleString()} F
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-3">
                   <Button type="button" variant="outline" className="flex-1 border-zinc-700" onClick={() => setEditingSale(null)}>Annuler</Button>
                   <Button type="submit" className="flex-1 bg-amber-600 hover:bg-amber-700">Enregistrer</Button>
+                </div>
+
+                {/* ── Effacer le solde restant ── */}
+                {editingSale && (editingSale.remaining_balance || 0) > 0 && (
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-orange-300 uppercase tracking-wider">
+                      Remise de dette
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      Reste dû : <span className="font-bold text-orange-300">{(editingSale.remaining_balance || 0).toLocaleString()} F</span>.
+                      En cliquant ci-dessous, ce solde sera annulé et le ticket sera considéré comme soldé.
+                    </p>
+                    <Button
+                      type="button"
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white text-sm"
+                      onClick={() => {
+                        if (confirm(`Effacer le solde de ${(editingSale.remaining_balance || 0).toLocaleString()} F pour ${editingSale.buyer_name} ?`)) {
+                          handleWaiveBalance(editingSale);
+                        }
+                      }}
+                    >
+                      ✓ Effacer le solde restant ({(editingSale.remaining_balance || 0).toLocaleString()} F)
+                    </Button>
+                  </div>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal classer comme soldé */}
+      {waivingSale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <Card className="w-full max-w-sm bg-zinc-950 border-zinc-800 shadow-2xl">
+            <CardHeader className="border-b border-zinc-800 pb-4">
+              <CardTitle className="flex justify-between items-center text-base">
+                Classer comme soldé
+                <button onClick={() => setWaivingSale(null)} className="text-zinc-500 hover:text-white">
+                  <Plus className="w-5 h-5 rotate-45" />
+                </button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <form onSubmit={handleWaiveSubmit} className="space-y-4">
+                {/* Récap */}
+                <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-3 text-sm space-y-1">
+                  <p><span className="text-zinc-500">Invité :</span> <span className="font-bold text-white">{waivingSale.buyer_name}</span></p>
+                  <p><span className="text-zinc-500">Prix final :</span> <span className="text-zinc-200">{waivingSale.final_price?.toLocaleString()} F</span></p>
+                  <p><span className="text-zinc-500">Déjà payé :</span> <span className="text-green-400 font-bold">{waivingSale.total_paid?.toLocaleString()} F</span></p>
+                  <p><span className="text-zinc-500">Solde remis :</span> <span className="text-purple-400 font-bold">{(waivingSale.remaining_balance || 0).toLocaleString()} F</span></p>
+                </div>
+
+                {/* Note obligatoire */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Motif <span className="text-red-400">*</span>
+                  </label>
+                  <textarea
+                    value={waiveReason}
+                    onChange={(e) => setWaiveReason(e.target.value)}
+                    required
+                    rows={3}
+                    placeholder="Ex: Accord BDE, étudiant en difficulté, geste commercial, parrain..."
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 resize-none"
+                  />
+                  <p className="text-xs text-zinc-600">Cette note sera visible dans les rapports financiers.</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" className="flex-1 border-zinc-700" onClick={() => setWaivingSale(null)}>
+                    Annuler
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={waiveSaving || !waiveReason.trim()}
+                    className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-40"
+                  >
+                    {waiveSaving ? 'Enregistrement...' : 'Confirmer'}
+                  </Button>
                 </div>
               </form>
             </CardContent>
